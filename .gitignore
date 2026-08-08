@@ -1,0 +1,11 @@
+# Python & Virtual Environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter Notebook Cache & Checkpoints
+.ipynb_checkpoints/
+
+# Operating System
+.DS_Store
