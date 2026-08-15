@@ -7,7 +7,20 @@ __pycache__/
 # Jupyter Notebook Cache & Checkpoints
 .ipynb_checkpoints/
 
-# Operating System
+# Operating System & IDE
 .DS_Store
+.vscode/
+.idea/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+secrets/
+
+# Embedded Local Database & BoltDB Caches
+*.db
+haunter_cache.db
 
 design

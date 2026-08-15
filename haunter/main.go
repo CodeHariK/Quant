@@ -115,6 +115,72 @@ func main() {
 		}
 	})
 
+	// 3. KiteConnect Portfolio & Trade History REST Endpoint
+	http.HandleFunc("/api/kite/portfolio", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		report, err := fetcher.FetchKitePortfolio()
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusUnauthorized)
+			return
+		}
+
+		json.NewEncoder(w).Encode(report)
+	})
+
+	// 4. KiteConnect OAuth Callback & Session Generation Endpoint
+	http.HandleFunc("/api/kite/session", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method == http.MethodGet {
+			session, ok := st.GetKiteSession()
+			if !ok {
+				http.Error(w, `{"authenticated": false}`, http.StatusOK)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"authenticated": true,
+				"apiKey":        session.APIKey,
+				"createdAt":     session.CreatedAt,
+			})
+			return
+		}
+
+		type SessionReq struct {
+			APIKey       string `json:"apiKey"`
+			APISecret    string `json:"apiSecret"`
+			RequestToken string `json:"requestToken"`
+		}
+
+		var req SessionReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.APIKey == "" || req.APISecret == "" || req.RequestToken == "" {
+			http.Error(w, `{"error": "apiKey, apiSecret, and requestToken are required"}`, http.StatusBadRequest)
+			return
+		}
+
+		session, err := fetcher.GenerateKiteSession(req.APIKey, req.APISecret, req.RequestToken)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "session": session})
+	})
+
 	// Background simulation ticker for live UI testing
 	go runBackgroundSimulation(hub)
 

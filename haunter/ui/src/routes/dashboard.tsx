@@ -1,13 +1,208 @@
 import { Title } from '@solidjs/meta';
+import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Card, PositionCard } from '../components/Card';
+import { Table } from '../components/Table';
+import { fetchKitePortfolio, fetchKiteSession, saveKiteSession, type KitePortfolioReport } from '../api/stockApi';
 
 export default function Dashboard() {
+  const [kiteReport, setKiteReport] = createSignal<KitePortfolioReport | null>(null);
+  const [kiteAuth, setKiteAuth] = createSignal<boolean>(false);
+  const [apiKeyInput, setApiKeyInput] = createSignal<string>('');
+  const [apiSecretInput, setApiSecretInput] = createSignal<string>('');
+  const [requestTokenInput, setRequestTokenInput] = createSignal<string>('');
+  const [authError, setAuthError] = createSignal<string | null>(null);
+  const [loading, setLoading] = createSignal<boolean>(false);
+
+  const loadPortfolio = () => {
+    setLoading(true);
+    fetchKitePortfolio()
+      .then((data) => {
+        setKiteReport(data);
+        setKiteAuth(true);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setKiteAuth(false);
+        setLoading(false);
+      });
+  };
+
+  createEffect(
+    () => true,
+    () => {
+      fetchKiteSession().then((res) => {
+        if (res.authenticated) {
+          setKiteAuth(true);
+          loadPortfolio();
+        }
+      });
+    }
+  );
+
+  const handleKiteAuthenticate = (e: Event) => {
+    e.preventDefault();
+    setAuthError(null);
+    setLoading(true);
+
+    saveKiteSession(apiKeyInput().trim(), apiSecretInput().trim(), requestTokenInput().trim())
+      .then(() => {
+        setKiteAuth(true);
+        loadPortfolio();
+      })
+      .catch((err) => {
+        setAuthError(err.message);
+        setLoading(false);
+      });
+  };
+
   return (
     <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
-      <Title>Alpha Arena - Financial Dashboard</Title>
+      <Title>Alpha Arena - Financial Dashboard & Zerodha Portfolio</Title>
 
-      {/* Top Section: Performance Summary Card */}
+      {/* Top Section: Zerodha KiteConnect Session Banner */}
+      {!kiteAuth() ? (
+        <Card containerClass="border border-black bg-white p-6">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-gray-200 pb-4">
+            <div>
+              <h2 class="font-headline-md text-headline-md uppercase font-bold text-black flex items-center gap-2">
+                <span>⚡ ZERODHA KITECONNECT INTEGRATION</span>
+              </h2>
+              <p class="font-code-md text-code-md text-muted-gray mt-1">
+                Authenticate with your Zerodha KiteConnect API key to load live equity holdings, position P&L, and executed trade logs.
+              </p>
+            </div>
+            <a
+              href="https://kite.trade/"
+              target="_blank"
+              class="border border-black px-3 py-1 font-label-caps text-label-caps hover:bg-gray-100 uppercase"
+            >
+              KITE DEVELOPER CONSOLE ↗
+            </a>
+          </div>
+
+          <form onSubmit={handleKiteAuthenticate} class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">API KEY</label>
+              <input
+                type="text"
+                placeholder="e.g. 12345xyz"
+                value={apiKeyInput()}
+                onInput={(e) => setApiKeyInput(e.currentTarget.value)}
+                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
+                required
+              />
+            </div>
+            <div>
+              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">API SECRET</label>
+              <input
+                type="password"
+                placeholder="e.g. secretabc..."
+                value={apiSecretInput()}
+                onInput={(e) => setApiSecretInput(e.currentTarget.value)}
+                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
+                required
+              />
+            </div>
+            <div>
+              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">REQUEST TOKEN (FROM OAUTH CALLBACK)</label>
+              <input
+                type="text"
+                placeholder="e.g. req_tok_123..."
+                value={requestTokenInput()}
+                onInput={(e) => setRequestTokenInput(e.currentTarget.value)}
+                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading()}
+              class="bg-black text-white p-2.5 font-label-caps text-label-caps font-bold hover:bg-gray-800 uppercase cursor-pointer"
+            >
+              {loading() ? 'CONNECTING...' : 'CONNECT ZERODHA KITE 🔑'}
+            </button>
+          </form>
+          {authError() && <div class="font-code-md text-code-md text-critical-red mt-3">{authError()}</div>}
+        </Card>
+      ) : (
+        <div class="border border-black bg-white p-4 flex justify-between items-center text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-terminal-green inline-block border border-black"></span>
+            <span class="font-bold uppercase">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</span>
+          </div>
+          <button onClick={loadPortfolio} class="border border-black px-3 py-1 font-bold uppercase hover:bg-gray-100 cursor-pointer">
+            REFRESH PORTFOLIO 🔄
+          </button>
+        </div>
+      )}
+
+      {/* Equity Holdings Table from KiteConnect */}
+      {kiteReport() && kiteReport()!.holdings.length > 0 && (
+        <Card
+          containerClass="border border-black bg-white p-6"
+          headerClass="flex justify-between items-center mb-4 border-b border-black pb-3"
+          title={`Zerodha Equity Holdings (${kiteReport()!.holdings.length} Assets)`}
+          titleClass="font-headline-md text-headline-md uppercase font-bold text-black"
+        >
+          <Table
+            columns={[
+              { header: 'SYMBOL', accessor: 'tradingsymbol', className: 'p-3 font-bold text-black' },
+              { header: 'EXCHANGE', accessor: 'exchange', className: 'p-3 text-gray-500' },
+              { header: 'QTY', accessor: 'quantity', className: 'p-3 font-mono' },
+              { header: 'AVG PRICE', cell: (r) => `₹${r.averagePrice.toFixed(2)}`, className: 'p-3 font-mono' },
+              { header: 'LAST PRICE', cell: (r) => `₹${r.lastPrice.toFixed(2)}`, className: 'p-3 font-mono' },
+              {
+                header: 'P&L (INR)',
+                cell: (r) => (
+                  <span class={`font-bold ${r.pnl >= 0 ? 'text-terminal-green' : 'text-critical-red'}`}>
+                    {r.pnl >= 0 ? `+₹${r.pnl.toFixed(2)}` : `-₹${Math.abs(r.pnl).toFixed(2)}`}
+                  </span>
+                ),
+                align: 'right',
+                className: 'p-3 text-right',
+              },
+            ]}
+            data={kiteReport()!.holdings}
+          />
+        </Card>
+      )}
+
+      {/* Executed Trade Logs & Purchase Dates from KiteConnect */}
+      {kiteReport() && kiteReport()!.tradeHistory.length > 0 && (
+        <Card
+          containerClass="border border-black bg-white p-6"
+          headerClass="flex justify-between items-center mb-4 border-b border-black pb-3"
+          title="Executed Trade Logs & Timestamps (KiteConnect)"
+          titleClass="font-headline-md text-headline-md uppercase font-bold text-black"
+        >
+          <Table
+            columns={[
+              {
+                header: 'DATE & TIMESTAMP',
+                cell: (r) => <span class="font-mono text-gray-600">{new Date(r.tradeTimestamp).toLocaleString()}</span>,
+                className: 'p-3',
+              },
+              { header: 'SYMBOL', accessor: 'tradingsymbol', className: 'p-3 font-bold text-black' },
+              {
+                header: 'TYPE',
+                cell: (r) => (
+                  <span class={`font-bold px-2 py-0.5 text-xs ${r.transactionType === 'BUY' ? 'bg-terminal-green/20 text-green-800' : 'bg-critical-red/20 text-red-800'}`}>
+                    {r.transactionType}
+                  </span>
+                ),
+                className: 'p-3',
+              },
+              { header: 'QTY', accessor: 'quantity', className: 'p-3 font-mono' },
+              { header: 'AVG EXECUTION PRICE', cell: (r) => `₹${r.averagePrice.toFixed(2)}`, className: 'p-3 font-mono' },
+              { header: 'ORDER ID', accessor: 'orderId', className: 'p-3 font-mono text-gray-500 text-xs' },
+            ]}
+            data={kiteReport()!.tradeHistory}
+          />
+        </Card>
+      )}
+
+      {/* Aggregate Performance Section */}
       <Card containerClass="border border-primary bg-surface-container-lowest p-6">
         <div class="flex justify-between items-start mb-6 border-b border-primary pb-4">
           <div>
@@ -30,67 +225,7 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
-
-      {/* Middle Section: Metrics Grid */}
-      <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card title="TOTAL P&L">
-          <div class="font-headline-sm text-headline-sm text-terminal-green font-bold">+$12,425.18</div>
-        </Card>
-        <Card title="TOTAL FEES">
-          <div class="font-headline-sm text-headline-sm text-primary font-bold">$2,086.39</div>
-        </Card>
-        <Card title="NET REALIZED">
-          <div class="font-headline-sm text-headline-sm text-terminal-green font-bold">+$8,345.95</div>
-        </Card>
-        <Card title="UNREALIZED P&L">
-          <div class="font-headline-sm text-headline-sm text-critical-red font-bold">-$1,023.00</div>
-        </Card>
-      </section>
-
-      {/* Bottom Section: Active Positions */}
-      <Card
-        containerClass="border border-primary bg-surface-container-lowest p-6"
-        headerClass="flex justify-between items-center mb-6 border-b border-primary pb-4"
-        title="Active Positions"
-        titleClass="font-headline-md text-headline-md uppercase font-bold text-primary"
-        headerAction={<button class="border border-primary px-4 py-1 font-label-caps text-label-caps hover:bg-surface-container transition-colors">FILTER</button>}
-      >
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <PositionCard
-            side="LONG"
-            symbol="NVDA"
-            model="GPT-5.1"
-            entryTime="09:30:00 EST"
-            entryPrice="$220.02"
-            quantity="50.00"
-            leverage="5X"
-            unrealizedPl="+$256.50"
-            isPositive={true}
-          />
-          <PositionCard
-            side="SHORT"
-            symbol="MSFT"
-            model="CLAUDE-3.5"
-            entryTime="10:15:22 EST"
-            entryPrice="$498.50"
-            quantity="15.00"
-            leverage="2X"
-            unrealizedPl="+$52.05"
-            isPositive={true}
-          />
-          <PositionCard
-            side="LONG"
-            symbol="PLTR"
-            model="GEMINI-1.5"
-            entryTime="13:45:00 EST"
-            entryPrice="$176.00"
-            quantity="100.00"
-            leverage="10X"
-            unrealizedPl="-$118.00"
-            isPositive={false}
-          />
-        </div>
-      </Card>
     </PageLayout>
   );
 }
+

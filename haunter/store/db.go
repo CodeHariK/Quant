@@ -15,15 +15,24 @@ const (
 	reportsBucket   = "ValuationReports"
 	watchlistBucket = "Watchlist"
 	watchlistKey    = "user_watchlist"
+	kiteBucket      = "KiteSession"
+	kiteSessionKey  = "user_kite_session"
 )
 
 type Store struct {
 	db *bolt.DB
 }
 
+type KiteSessionData struct {
+	APIKey      string    `json:"apiKey"`
+	APISecret   string    `json:"apiSecret"`
+	AccessToken string    `json:"accessToken"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
 var globalStore *Store
 
-// InitStore opens embedded BoltDB and creates ValuationReports and Watchlist buckets
+// InitStore opens embedded BoltDB and creates ValuationReports, Watchlist, and KiteSession buckets
 func InitStore() (*Store, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
@@ -35,6 +44,9 @@ func InitStore() (*Store, error) {
 			return err
 		}
 		if _, err := tx.CreateBucketIfNotExists([]byte(watchlistBucket)); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(kiteBucket)); err != nil {
 			return err
 		}
 		return nil
@@ -195,4 +207,44 @@ func (s *Store) RemoveWatchlistSymbol(symbol string) ([]string, error) {
 		return nil, err
 	}
 	return updated, nil
+}
+
+// SaveKiteSession stores Kite API key, secret, and access token to BoltDB
+func (s *Store) SaveKiteSession(session *KiteSessionData) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(kiteBucket))
+		if b == nil {
+			return fmt.Errorf("kite bucket not found")
+		}
+		data, err := json.Marshal(session)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(kiteSessionKey), data)
+	})
+}
+
+// GetKiteSession retrieves stored Kite credentials from BoltDB
+func (s *Store) GetKiteSession() (*KiteSessionData, bool) {
+	var session KiteSessionData
+	found := false
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(kiteBucket))
+		if b == nil {
+			return nil
+		}
+		data := b.Get([]byte(kiteSessionKey))
+		if data == nil {
+			return nil
+		}
+		if err := json.Unmarshal(data, &session); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+	if err != nil || !found {
+		return nil, false
+	}
+	return &session, true
 }
