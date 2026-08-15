@@ -39,7 +39,7 @@ const (
 	CautionHigh   CautionLevel = "HIGH"
 )
 
-// StockInfo represents detailed valuation & company info from yfinance
+// StockInfo represents Tier 1 Relative Valuation & Key Statistics from Ticker.Info
 type StockInfo struct {
 	Symbol           string  `json:"symbol"`
 	LongName         string  `json:"longName"`
@@ -63,22 +63,35 @@ type StockInfo struct {
 	TargetMeanPrice  float64 `json:"targetMeanPrice"`
 }
 
-// MarketTickerPayload represents streaming asset prices & changes
-type MarketTickerPayload struct {
-	Symbol        string  `json:"symbol"`
-	Price         float64 `json:"price"`
-	ChangePercent float64 `json:"changePercent"`
-	IsPositive    bool    `json:"isPositive"`
+// FinancialStatementItem represents a line item entry in CashFlow / Income / Balance Sheet
+type FinancialStatementItem struct {
+	Period string             `json:"period"`
+	Values map[string]float64 `json:"values"`
 }
 
-// PortfolioPayload represents aggregate performance metrics
-type PortfolioPayload struct {
-	TotalAccountValue float64 `json:"totalAccountValue"`
-	AvailableCash     float64 `json:"availableCash"`
-	TotalPnL          float64 `json:"totalPnL"`
-	TotalFees         float64 `json:"totalFees"`
-	NetRealized       float64 `json:"netRealized"`
-	UnrealizedPnL     float64 `json:"unrealizedPnL"`
+// FullValuationReport consolidates the 5 Core Tier 1 yfinance endpoints:
+// 1. History (OHLCV time series)
+// 2. Info (Ratios & Overview)
+// 3. CashFlow (DCF inputs: Operating Cash Flow, CapEx, Free Cash Flow)
+// 4. IncomeStatement (Revenue, EBIT, Net Income growth)
+// 5. BalanceSheet (Assets, Total Debt, Cash reserves)
+type FullValuationReport struct {
+	Symbol          string                   `json:"symbol"`
+	FetchedAt       time.Time                `json:"fetchedAt"`
+	Info            *StockInfo               `json:"info"`
+	History         []HistoryBar             `json:"history"`
+	CashFlow        []FinancialStatementItem `json:"cashFlow"`
+	IncomeStatement []FinancialStatementItem `json:"incomeStatement"`
+	BalanceSheet    []FinancialStatementItem `json:"balanceSheet"`
+}
+
+type HistoryBar struct {
+	Date   string  `json:"date"`
+	Open   float64 `json:"open"`
+	High   float64 `json:"high"`
+	Low    float64 `json:"low"`
+	Close  float64 `json:"close"`
+	Volume int64   `json:"volume"`
 }
 
 // ExecutionLogPayload represents trade logs and execution events

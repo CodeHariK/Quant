@@ -1,11 +1,12 @@
-import type { StockInfo } from '../types/events';
+import type { FullValuationReport } from '../types/events';
 
 const API_BASE_URL = 'http://localhost:8080';
 
-export async function fetchStockInfo(symbol: string): Promise<StockInfo> {
-  const response = await fetch(`${API_BASE_URL}/api/stock-info?symbol=${encodeURIComponent(symbol)}`);
+export async function fetchValuationReport(symbol: string, forceRefresh = false): Promise<FullValuationReport> {
+  const url = `${API_BASE_URL}/api/valuation-report?symbol=${encodeURIComponent(symbol)}&force=${forceRefresh}`;
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch stock info for ${symbol}: ${response.statusText}`);
+    throw new Error(`Failed to fetch valuation report for ${symbol}: ${response.statusText}`);
   }
   return response.json();
 }

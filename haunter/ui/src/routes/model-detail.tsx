@@ -2,12 +2,12 @@ import { Title } from '@solidjs/meta';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Table } from '../components/Table';
-import { fetchStockInfo } from '../api/stockApi';
-import type { StockInfo } from '../types/events';
+import { fetchValuationReport } from '../api/stockApi';
+import type { StockInfo, FullValuationReport } from '../types/events';
 
 export default function ModelDetail() {
   const [selectedSymbol, setSelectedSymbol] = createSignal<string>('RELIANCE.NS');
-  const [stockInfo, setStockInfo] = createSignal<StockInfo | null>(null);
+  const [fullReport, setFullReport] = createSignal<FullValuationReport | null>(null);
   const [loading, setLoading] = createSignal<boolean>(false);
   const [error, setError] = createSignal<string | null>(null);
 
@@ -21,22 +21,28 @@ export default function ModelDetail() {
     { label: 'NVIDIA (NASDAQ)', symbol: 'NVDA' },
   ];
 
+  const loadStockReport = (sym: string, force = false) => {
+    setLoading(true);
+    setError(null);
+    fetchValuationReport(sym, force)
+      .then((report) => {
+        setFullReport(report);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  };
+
   createEffect(
     () => selectedSymbol(),
     (sym) => {
-      setLoading(true);
-      setError(null);
-      fetchStockInfo(sym)
-        .then((info) => {
-          setStockInfo(info);
-          setLoading(false);
-        })
-        .catch((err) => {
-          setError(err.message);
-          setLoading(false);
-        });
+      loadStockReport(sym, false); // Load from BoltDB cache if valid
     }
   );
+
+  const stockInfo = () => fullReport()?.info;
 
   return (
     <PageLayout showSidebar={false}>
@@ -67,7 +73,7 @@ export default function ModelDetail() {
           <div>
             <div class="flex items-center gap-3 mb-2 text-xs">
               <span class="w-3 h-3 bg-[#00FF41] inline-block border border-black"></span>
-              <span class="uppercase font-bold">VALUATION ENGINE: YFINANCE</span>
+              <span class="uppercase font-bold">VALUATION ENGINE: YFINANCE (5-YEAR)</span>
               <span class="text-gray-500 border border-gray-200 px-2 py-0.5 ml-2 font-bold">{stockInfo()?.symbol || selectedSymbol()}</span>
             </div>
             <h1 class="text-3xl text-black uppercase tracking-tight font-bold">{stockInfo()?.longName || selectedSymbol()}</h1>
@@ -76,8 +82,14 @@ export default function ModelDetail() {
             </p>
           </div>
           <div class="flex gap-2 text-xs font-bold">
-            <button class="bg-black text-white px-4 py-2 border border-black hover:bg-gray-800">REFRESH DATA</button>
-            <button class="bg-transparent border border-black text-black px-4 py-2 hover:bg-gray-100">EXPORT VALUATION</button>
+            <button
+              onClick={() => loadStockReport(selectedSymbol(), true)}
+              disabled={loading()}
+              class="bg-black text-white px-4 py-2 border border-black hover:bg-gray-800 disabled:opacity-50 uppercase cursor-pointer"
+            >
+              {loading() ? 'FETCHING...' : 'FORCE REFRESH 🔄'}
+            </button>
+            <button class="bg-transparent border border-black text-black px-4 py-2 hover:bg-gray-100 uppercase">EXPORT VALUATION</button>
           </div>
         </div>
       </header>

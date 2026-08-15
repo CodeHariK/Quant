@@ -11,6 +11,7 @@ require (
 	github.com/Danny-Dasilva/CycleTLS/cycletls v1.0.26 // indirect
 	github.com/Danny-Dasilva/fhttp v0.0.0-20240217042913-eeeb0b347ce1 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/klauspost/compress v1.17.6 // indirect

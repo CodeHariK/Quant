@@ -23,6 +23,30 @@ export interface StockInfo {
   targetMeanPrice: number;
 }
 
+export interface FinancialStatementItem {
+  period: string;
+  values: Record<string, number>;
+}
+
+export interface HistoryBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface FullValuationReport {
+  symbol: string;
+  fetchedAt: string;
+  info: StockInfo;
+  history: HistoryBar[];
+  cashFlow: FinancialStatementItem[];
+  incomeStatement: FinancialStatementItem[];
+  balanceSheet: FinancialStatementItem[];
+}
+
 export interface MarketTickerPayload {
   symbol: string;
   price: number;
