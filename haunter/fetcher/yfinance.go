@@ -14,7 +14,7 @@ import (
 )
 
 // FetchFullValuationReport fetches 5-Year Core Valuation Data (Info, 5y History, 5y CashFlow, 5y IncomeStatement, 5y BalanceSheet).
-// Uses BoltDB embedded caching (24-hour TTL). Pass forceRefresh = true to override cache.
+// Preserves the COMPLETE raw info model & financial statements without discarding any fields.
 func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValuationReport, error) {
 	st := store.GetStore()
 
@@ -29,7 +29,6 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 
 	log.Printf("🌐 [CACHE_MISS] Fetching 5-Year Valuation Report for [%s] from Yahoo Finance...\n", symbol)
 
-	// Log rate limit request
 	if err := logger.LogYahooRequest(fmt.Sprintf("FetchFullValuationReport(5Y, %s)", symbol)); err != nil {
 		return nil, err
 	}
@@ -40,40 +39,10 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	}
 	defer t.Close()
 
-	// 1. Info (Key Ratios & Company Overview)
-	var stockInfo *types.StockInfo
-	if info, err := t.Info(); err == nil && info != nil {
-		name := info.LongName
-		if name == "" {
-			name = info.ShortName
-		}
-		if name == "" {
-			name = symbol
-		}
-		stockInfo = &types.StockInfo{
-			Symbol:           symbol,
-			LongName:         name,
-			Sector:           info.Sector,
-			Industry:         info.Industry,
-			CurrentPrice:     info.CurrentPrice,
-			MarketCap:        info.MarketCap,
-			TrailingPE:       info.TrailingPE,
-			ForwardPE:        info.ForwardPE,
-			PriceToBook:      info.PriceToBook,
-			PEGRatio:         info.PegRatio,
-			BookValue:        info.BookValue,
-			EBITDA:           float64(info.Ebitda),
-			TotalCash:        float64(info.TotalCash),
-			TotalDebt:        float64(info.TotalDebt),
-			DebtToEquity:     info.DebtToEquity,
-			ProfitMargins:    info.ProfitMargins,
-			OperatingMargins: info.OperatingMargins,
-			FiftyTwoWeekHigh: info.FiftyTwoWeekHigh,
-			FiftyTwoWeekLow:  info.FiftyTwoWeekLow,
-			TargetMeanPrice:  info.TargetMeanPrice,
-		}
-	} else {
-		stockInfo = &types.StockInfo{Symbol: symbol, LongName: symbol}
+	// 1. Raw Info (Complete company profile, ratios, statistics)
+	rawInfo, _ := t.Info()
+	if rawInfo == nil {
+		rawInfo = &models.Info{Symbol: symbol, LongName: symbol}
 	}
 
 	// 2. History (5-Year Daily OHLCV Candles)
@@ -90,7 +59,7 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		})
 	}
 
-	// Helper to extract multi-year financial statements
+	// Helper to extract complete financial statement fields dynamically without dropping keys
 	extractStatement := func(fs *models.FinancialStatement) []types.FinancialStatementItem {
 		items := make([]types.FinancialStatementItem, 0)
 		if fs == nil {
@@ -111,19 +80,19 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		return items
 	}
 
-	// 3. CashFlow (Multi-Year Annual DCF inputs: Operating Cash Flow, CapEx, FCF)
+	// 3. CashFlow (All annual line items)
 	cfItems := make([]types.FinancialStatementItem, 0)
 	if cf, err := t.CashFlow(string(models.FrequencyAnnual)); err == nil && cf != nil {
 		cfItems = extractStatement(cf)
 	}
 
-	// 4. IncomeStatement (Multi-Year Annual Revenue, EBIT, Net Income)
+	// 4. IncomeStatement (All annual line items)
 	isItems := make([]types.FinancialStatementItem, 0)
 	if inc, err := t.IncomeStatement(string(models.FrequencyAnnual)); err == nil && inc != nil {
 		isItems = extractStatement(inc)
 	}
 
-	// 5. BalanceSheet (Multi-Year Annual Assets, Debt, Cash reserves)
+	// 5. BalanceSheet (All annual line items)
 	bsItems := make([]types.FinancialStatementItem, 0)
 	if bs, err := t.BalanceSheet(string(models.FrequencyAnnual)); err == nil && bs != nil {
 		bsItems = extractStatement(bs)
@@ -132,19 +101,19 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	report := &types.FullValuationReport{
 		Symbol:          symbol,
 		FetchedAt:       time.Now(),
-		Info:            stockInfo,
+		RawInfo:         rawInfo,
 		History:         historyBars,
 		CashFlow:        cfItems,
 		IncomeStatement: isItems,
 		BalanceSheet:    bsItems,
 	}
 
-	// Save fresh 5-year report to BoltDB
+	// Save complete 5-year report to BoltDB
 	if st != nil {
 		if err := st.SaveValuationReport(report); err != nil {
 			log.Printf("⚠️ Failed to save report for [%s] to BoltDB: %v\n", symbol, err)
 		} else {
-			log.Printf("💾 [CACHE_STORED] Saved 5-Year Valuation Report for [%s] to BoltDB (5y candles: %d)\n", symbol, len(historyBars))
+			log.Printf("💾 [CACHE_STORED] Saved Complete 5-Year Valuation Report for [%s] to BoltDB (History bars: %d)\n", symbol, len(historyBars))
 		}
 	}
 

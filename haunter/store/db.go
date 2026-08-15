@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -10,8 +11,10 @@ import (
 )
 
 const (
-	dbPath       = "haunter_cache.db"
-	reportsBucket = "ValuationReports"
+	dbPath          = "haunter_cache.db"
+	reportsBucket   = "ValuationReports"
+	watchlistBucket = "Watchlist"
+	watchlistKey    = "user_watchlist"
 )
 
 type Store struct {
@@ -20,7 +23,7 @@ type Store struct {
 
 var globalStore *Store
 
-// InitStore opens embedded BoltDB and creates ValuationReports bucket
+// InitStore opens embedded BoltDB and creates ValuationReports and Watchlist buckets
 func InitStore() (*Store, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
@@ -28,14 +31,27 @@ func InitStore() (*Store, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(reportsBucket))
-		return err
+		if _, err := tx.CreateBucketIfNotExists([]byte(reportsBucket)); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(watchlistBucket)); err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create bucket: %w", err)
+		return nil, fmt.Errorf("failed to create buckets: %w", err)
 	}
 
 	globalStore = &Store{db: db}
+
+	// Seed default watchlist if empty
+	defaultWatchlist := []string{"RELIANCE.NS", "TATAMOTORS.NS", "INFY.NS", "TCS.NS", "AAPL", "MSFT", "NVDA"}
+	current, _ := globalStore.GetWatchlist()
+	if len(current) == 0 {
+		_ = globalStore.SaveWatchlist(defaultWatchlist)
+	}
+
 	return globalStore, nil
 }
 
@@ -101,4 +117,82 @@ func (s *Store) SaveValuationReport(report *types.FullValuationReport) error {
 
 		return b.Put([]byte(report.Symbol), data)
 	})
+}
+
+// GetWatchlist retrieves stored watchlist symbols from BoltDB
+func (s *Store) GetWatchlist() ([]string, error) {
+	var list []string
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(watchlistBucket))
+		if b == nil {
+			return nil
+		}
+		data := b.Get([]byte(watchlistKey))
+		if data == nil {
+			return nil
+		}
+		return json.Unmarshal(data, &list)
+	})
+	return list, err
+}
+
+// SaveWatchlist saves current list of symbols to BoltDB
+func (s *Store) SaveWatchlist(symbols []string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(watchlistBucket))
+		if b == nil {
+			return fmt.Errorf("watchlist bucket not found")
+		}
+		data, err := json.Marshal(symbols)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(watchlistKey), data)
+	})
+}
+
+// AddWatchlistSymbol adds a symbol to BoltDB watchlist
+func (s *Store) AddWatchlistSymbol(symbol string) ([]string, error) {
+	sym := strings.TrimSpace(strings.ToUpper(symbol))
+	if sym == "" {
+		return s.GetWatchlist()
+	}
+
+	list, err := s.GetWatchlist()
+	if err != nil {
+		list = []string{}
+	}
+
+	for _, existing := range list {
+		if strings.EqualFold(existing, sym) {
+			return list, nil // Already exists
+		}
+	}
+
+	list = append(list, sym)
+	if err := s.SaveWatchlist(list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// RemoveWatchlistSymbol removes a symbol from BoltDB watchlist
+func (s *Store) RemoveWatchlistSymbol(symbol string) ([]string, error) {
+	sym := strings.TrimSpace(strings.ToUpper(symbol))
+	list, err := s.GetWatchlist()
+	if err != nil {
+		return list, err
+	}
+
+	updated := make([]string, 0, len(list))
+	for _, existing := range list {
+		if !strings.EqualFold(existing, sym) {
+			updated = append(updated, existing)
+		}
+	}
+
+	if err := s.SaveWatchlist(updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }

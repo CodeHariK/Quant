@@ -1,15 +1,9 @@
 package types
 
-import "time"
+import (
+	"time"
 
-// EventType demarcation for SSE events
-type EventType string
-
-const (
-	EventMarketTicker EventType = "market_ticker"
-	EventPortfolio    EventType = "portfolio_update"
-	EventExecutionLog EventType = "execution_log"
-	EventWatchdog     EventType = "watchdog_update"
+	"github.com/wnjoon/go-yfinance/pkg/models"
 )
 
 // LogLevel string enum for execution log levels
@@ -39,46 +33,22 @@ const (
 	CautionHigh   CautionLevel = "HIGH"
 )
 
-// StockInfo represents Tier 1 Relative Valuation & Key Statistics from Ticker.Info
-type StockInfo struct {
-	Symbol           string  `json:"symbol"`
-	LongName         string  `json:"longName"`
-	Sector           string  `json:"sector"`
-	Industry         string  `json:"industry"`
-	CurrentPrice     float64 `json:"currentPrice"`
-	MarketCap        int64   `json:"marketCap"`
-	TrailingPE       float64 `json:"trailingPE"`
-	ForwardPE        float64 `json:"forwardPE"`
-	PriceToBook      float64 `json:"priceToBook"`
-	PEGRatio         float64 `json:"pegRatio"`
-	BookValue        float64 `json:"bookValue"`
-	EBITDA           float64 `json:"ebitda"`
-	TotalCash        float64 `json:"totalCash"`
-	TotalDebt        float64 `json:"totalDebt"`
-	DebtToEquity     float64 `json:"debtToEquity"`
-	ProfitMargins    float64 `json:"profitMargins"`
-	OperatingMargins float64 `json:"operatingMargins"`
-	FiftyTwoWeekHigh float64 `json:"fiftyTwoWeekHigh"`
-	FiftyTwoWeekLow  float64 `json:"fiftyTwoWeekLow"`
-	TargetMeanPrice  float64 `json:"targetMeanPrice"`
-}
-
 // FinancialStatementItem represents a line item entry in CashFlow / Income / Balance Sheet
 type FinancialStatementItem struct {
 	Period string             `json:"period"`
 	Values map[string]float64 `json:"values"`
 }
 
-// FullValuationReport consolidates the 5 Core Tier 1 yfinance endpoints:
-// 1. History (OHLCV time series)
-// 2. Info (Ratios & Overview)
-// 3. CashFlow (DCF inputs: Operating Cash Flow, CapEx, Free Cash Flow)
-// 4. IncomeStatement (Revenue, EBIT, Net Income growth)
-// 5. BalanceSheet (Assets, Total Debt, Cash reserves)
+// FullValuationReport consolidates complete 5-Year Data from go-yfinance without discarding fields:
+// 1. Info: Complete raw models.Info struct (100+ fields)
+// 2. History: Complete 5Y daily OHLCV candles
+// 3. CashFlow: Complete annual line items map
+// 4. IncomeStatement: Complete annual line items map
+// 5. BalanceSheet: Complete annual line items map
 type FullValuationReport struct {
 	Symbol          string                   `json:"symbol"`
 	FetchedAt       time.Time                `json:"fetchedAt"`
-	Info            *StockInfo               `json:"info"`
+	RawInfo         *models.Info             `json:"rawInfo"`
 	History         []HistoryBar             `json:"history"`
 	CashFlow        []FinancialStatementItem `json:"cashFlow"`
 	IncomeStatement []FinancialStatementItem `json:"incomeStatement"`
@@ -122,3 +92,12 @@ type SSEEvent struct {
 	Event EventType   `json:"event"`
 	Data  interface{} `json:"data"`
 }
+
+type EventType string
+
+const (
+	EventMarketTicker EventType = "market_ticker"
+	EventPortfolio    EventType = "portfolio_update"
+	EventExecutionLog EventType = "execution_log"
+	EventWatchdog     EventType = "watchdog_update"
+)

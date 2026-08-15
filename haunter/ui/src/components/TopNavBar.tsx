@@ -1,8 +1,9 @@
 import { useLocation } from '@solidjs/router';
-import { IoSettingsOutline, IoNotificationsOutline } from 'solid-icons/io';
+import { useTheme } from '../store/themeStore';
 
 export function TopNavBar() {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = [
     { label: 'LIVE', path: '/dashboard' },
@@ -36,7 +37,15 @@ export function TopNavBar() {
           })}
         </nav>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-6">
+        <button
+          onClick={toggleTheme}
+          class="flex items-center gap-2 border border-primary px-3 py-1 font-label-caps text-label-caps text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
+          title="Toggle Dark / Light Theme"
+        >
+          <span class="material-symbols-outlined text-[16px]">{theme() === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+          <span>{theme() === 'dark' ? 'LIGHT MODE' : 'DARK MODE'}</span>
+        </button>
         <a class="font-label-caps text-label-caps text-primary underline hover:opacity-80 transition-opacity flex items-center gap-1" href="#">
           JOIN THE PLATFORM WAITLIST <span class="material-symbols-outlined text-[14px]">open_in_new</span>
         </a>

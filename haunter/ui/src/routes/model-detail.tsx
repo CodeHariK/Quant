@@ -1,25 +1,42 @@
 import { Title } from '@solidjs/meta';
+import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Table } from '../components/Table';
-import { fetchValuationReport } from '../api/stockApi';
-import type { StockInfo, FullValuationReport } from '../types/events';
+import { fetchValuationReport, fetchWatchlist, addToWatchlist, removeFromWatchlist } from '../api/stockApi';
+import type { FullValuationReport } from '../types/events';
 
 export default function ModelDetail() {
-  const [selectedSymbol, setSelectedSymbol] = createSignal<string>('RELIANCE.NS');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read initial symbol from URL query parameter (e.g. ?symbol=GVT%26D.NS or ?symbol=AAPL)
+  const rawSymbol = Array.isArray(searchParams.symbol) ? searchParams.symbol[0] : searchParams.symbol;
+  const initialSymbol = rawSymbol ? decodeURIComponent(rawSymbol) : 'RELIANCE.NS';
+
+  const [selectedSymbol, setSelectedSymbol] = createSignal<string>(initialSymbol);
+  const [watchlist, setWatchlist] = createSignal<string[]>(['RELIANCE.NS', 'TATAMOTORS.NS', 'INFY.NS', 'TCS.NS', 'AAPL', 'MSFT', 'NVDA']);
+  const [newSymbolInput, setNewSymbolInput] = createSignal<string>('');
   const [fullReport, setFullReport] = createSignal<FullValuationReport | null>(null);
   const [loading, setLoading] = createSignal<boolean>(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  const stocks = [
-    { label: 'RELIANCE (NSE)', symbol: 'RELIANCE.NS' },
-    { label: 'TATA MOTORS (NSE)', symbol: 'TATAMOTORS.NS' },
-    { label: 'INFOSYS (NSE)', symbol: 'INFY.NS' },
-    { label: 'TCS (NSE)', symbol: 'TCS.NS' },
-    { label: 'APPLE (NASDAQ)', symbol: 'AAPL' },
-    { label: 'MICROSOFT (NASDAQ)', symbol: 'MSFT' },
-    { label: 'NVIDIA (NASDAQ)', symbol: 'NVDA' },
-  ];
+  // Sync Watchlist from backend on mount; respect URL symbol if provided
+  createEffect(
+    () => true,
+    () => {
+      fetchWatchlist()
+        .then((list) => {
+          if (list.length > 0) {
+            setWatchlist(list);
+            // If no symbol parameter was present in the URL, default to first watchlist item
+            if (!searchParams.symbol) {
+              setSelectedSymbol(list[0]);
+            }
+          }
+        })
+        .catch(() => { });
+    }
+  );
 
   const loadStockReport = (sym: string, force = false) => {
     setLoading(true);
@@ -35,36 +52,90 @@ export default function ModelDetail() {
       });
   };
 
+  // Whenever selectedSymbol changes: load report and update URL query parameter
   createEffect(
     () => selectedSymbol(),
     (sym) => {
-      loadStockReport(sym, false); // Load from BoltDB cache if valid
+      if (sym) {
+        setSearchParams({ symbol: sym });
+        loadStockReport(sym, false); // Load from BoltDB cache
+      }
     }
   );
 
-  const stockInfo = () => fullReport()?.info;
+  const handleAddSymbol = (e: Event) => {
+    e.preventDefault();
+    const sym = newSymbolInput().trim().toUpperCase();
+    if (!sym) return;
+
+    addToWatchlist(sym)
+      .then((list) => {
+        setWatchlist(list);
+        setSelectedSymbol(sym);
+        setNewSymbolInput('');
+      })
+      .catch((err) => setError(err.message));
+  };
+
+  const handleRemoveSymbol = (sym: string, e: Event) => {
+    e.stopPropagation();
+    removeFromWatchlist(sym)
+      .then((list) => {
+        setWatchlist(list);
+        if (selectedSymbol() === sym && list.length > 0) {
+          setSelectedSymbol(list[0]);
+        }
+      })
+      .catch((err) => setError(err.message));
+  };
+
+  const stockInfo = () => fullReport()?.rawInfo || (fullReport() as any)?.info;
 
   return (
     <PageLayout showSidebar={false}>
       <Title>Model & Stock Valuation - ALPHA ARENA</Title>
 
-      {/* Stock Selection Bar */}
-      <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-3">
-          <label class="font-label-caps text-label-caps text-muted-gray uppercase">SELECT ASSET FOR VALUATION:</label>
-          <select
-            value={selectedSymbol()}
-            onChange={(e) => setSelectedSymbol(e.currentTarget.value)}
-            class="border border-black bg-white py-1 px-3 font-code-md text-code-md font-bold uppercase cursor-pointer"
-          >
-            {stocks.map((s) => (
-              <option value={s.symbol}>{s.label}</option>
+      {/* Watchlist Management & Asset Selector Bar */}
+      <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <label class="font-label-caps text-label-caps text-muted-gray uppercase">WATCHLIST (BOLTDB):</label>
+          <div class="flex flex-wrap items-center gap-2">
+            {watchlist().map((sym) => (
+              <div
+                onClick={() => setSelectedSymbol(sym)}
+                class={`px-3 py-1 text-xs font-bold uppercase cursor-pointer border flex items-center gap-2 transition-colors ${selectedSymbol() === sym ? 'bg-black text-white border-black' : 'bg-surface hover:bg-gray-100 border-gray-300 text-black'
+                  }`}
+              >
+                <span>{sym}</span>
+                <span
+                  onClick={(e) => handleRemoveSymbol(sym, e)}
+                  class="material-symbols-outlined text-[14px] opacity-60 hover:opacity-100 hover:text-critical-red"
+                  title="Remove from watchlist"
+                >
+                  close
+                </span>
+              </div>
             ))}
-          </select>
+          </div>
         </div>
-        {loading() && <span class="font-code-md text-code-md text-muted-gray animate-pulse">Fetching yfinance data...</span>}
-        {error() && <span class="font-code-md text-code-md text-critical-red">{error()}</span>}
+
+        {/* Add Symbol Form */}
+        <form onSubmit={handleAddSymbol} class="flex items-center gap-2 w-full md:w-auto">
+          <input
+            type="text"
+            placeholder="ADD TICKER (e.g. AMZN, RELIANCE.NS)"
+            value={newSymbolInput()}
+            onInput={(e) => setNewSymbolInput(e.currentTarget.value)}
+            class="border border-black px-3 py-1 font-code-md text-code-md uppercase w-full md:w-64 bg-white"
+          />
+          <button type="submit" class="bg-black text-white px-3 py-1 text-xs font-bold border border-black hover:bg-gray-800 uppercase cursor-pointer">
+            + ADD
+          </button>
+        </form>
       </div>
+
+      {loading() && <div class="font-code-md text-code-md text-muted-gray mb-4 animate-pulse">Loading stock report from BoltDB cache...</div>}
+      {error() && <div class="font-code-md text-code-md text-critical-red mb-4">{error()}</div>}
 
       {/* Model & Stock Header */}
       <header class="border border-black bg-white p-6 relative mb-8">
@@ -73,7 +144,7 @@ export default function ModelDetail() {
           <div>
             <div class="flex items-center gap-3 mb-2 text-xs">
               <span class="w-3 h-3 bg-[#00FF41] inline-block border border-black"></span>
-              <span class="uppercase font-bold">VALUATION ENGINE: YFINANCE (5-YEAR)</span>
+              <span class="uppercase font-bold">VALUATION ENGINE: YFINANCE (FULL RAW DATA)</span>
               <span class="text-gray-500 border border-gray-200 px-2 py-0.5 ml-2 font-bold">{stockInfo()?.symbol || selectedSymbol()}</span>
             </div>
             <h1 class="text-3xl text-black uppercase tracking-tight font-bold">{stockInfo()?.longName || selectedSymbol()}</h1>
@@ -94,59 +165,126 @@ export default function ModelDetail() {
         </div>
       </header>
 
-      {/* Key Metrics Bar from yfinance */}
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-0 border border-black bg-white mb-6">
-        <div class="p-4 border-r border-b md:border-b-0 border-gray-200 flex flex-col justify-center">
-          <span class="font-label-caps text-label-caps text-muted-gray mb-1">CURRENT PRICE</span>
-          <span class="font-headline-md text-headline-md font-bold text-black">${stockInfo()?.currentPrice?.toFixed(2) || '0.00'}</span>
-        </div>
-        <div class="p-4 border-r border-b md:border-b-0 border-gray-200 flex flex-col justify-center">
-          <span class="font-label-caps text-label-caps text-muted-gray mb-1">TRAILING P/E</span>
-          <span class="font-headline-md text-headline-md font-bold text-terminal-green">
-            {stockInfo()?.trailingPE ? stockInfo()?.trailingPE?.toFixed(2) : 'N/A'}
-          </span>
-        </div>
-        <div class="p-4 border-r border-b md:border-b-0 border-gray-200 flex flex-col justify-center">
-          <span class="font-label-caps text-label-caps text-muted-gray mb-1">FORWARD P/E</span>
-          <span class="font-headline-md text-headline-md font-bold text-black">
-            {stockInfo()?.forwardPE ? stockInfo()?.forwardPE?.toFixed(2) : 'N/A'}
-          </span>
-        </div>
-        <div class="p-4 flex flex-col justify-center">
-          <span class="font-label-caps text-label-caps text-muted-gray mb-1">PRICE / BOOK</span>
-          <span class="font-headline-md text-headline-md font-bold text-black">
-            {stockInfo()?.priceToBook ? stockInfo()?.priceToBook?.toFixed(2) : 'N/A'}
-          </span>
-        </div>
-      </section>
+      {/* Categorized & Grouped Financial Statistics */}
+      {stockInfo() && (() => {
+        const info = stockInfo() || {};
 
-      {/* Extended Valuation & Financial Statement Metrics */}
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="border border-black bg-white p-4">
-          <div class="font-label-caps text-label-caps text-muted-gray mb-2 border-b border-gray-200 pb-1">EBITDA</div>
-          <div class="font-headline-sm text-headline-sm font-bold text-primary">
-            {stockInfo()?.ebitda ? `$${(stockInfo()!.ebitda / 1e9).toFixed(2)}B` : 'N/A'}
+        const ignoredKeys = new Set([
+          'symbol', 'shortname', 'longname', 'sector', 'industry', 'fulltimeemployees',
+          'city', 'country', 'phone', 'address1', 'address2', 'zip',
+          'companyofficers', 'quotetype', 'exchange', 'financialcurrency'
+        ]);
+
+        const categories: { title: string; keys: string[] }[] = [
+          {
+            title: '📊 VALUATION & KEY RATIOS',
+            keys: [
+              'marketCap', 'enterpriseValue', 'currentPrice', 'trailingPE', 'forwardPE',
+              'pegRatio', 'priceToBook', 'bookValue', 'priceToSalesTrailing12Months',
+              'enterpriseToRevenue', 'enterpriseToEbitda', 'trailingEps', 'forwardEps'
+            ],
+          },
+          {
+            title: '💼 FINANCIAL HEALTH & SOLVENCY',
+            keys: [
+              'totalCash', 'totalDebt', 'debtToEquity', 'totalCashPerShare',
+              'quickRatio', 'currentRatio', 'freeCashflow', 'operatingCashflow'
+            ],
+          },
+          {
+            title: '📈 OPERATING PERFORMANCE & MARGINS',
+            keys: [
+              'ebitda', 'totalRevenue', 'grossProfits', 'netIncomeToCommon', 'revenuePerShare',
+              'profitMargins', 'operatingMargins', 'grossMargins', 'ebitdaMargins',
+              'revenueGrowth', 'earningsGrowth', 'earningsQuarterlyGrowth', 'returnOnAssets', 'returnOnEquity'
+            ],
+          },
+          {
+            title: '📉 MARKET PRICE & TRADING VOLUME',
+            keys: [
+              'previousClose', 'open', 'dayLow', 'dayHigh', 'fiftyTwoWeekLow', 'fiftyTwoWeekHigh',
+              'fiftyDayAverage', 'twoHundredDayAverage', '52WeekChange', 'volume',
+              'averageVolume', 'averageVolume10days', 'beta', 'floatShares', 'sharesOutstanding'
+            ],
+          },
+          {
+            title: '🎯 ANALYST TARGETS & RECOMMENDATIONS',
+            keys: [
+              'targetMeanPrice', 'targetHighPrice', 'targetLowPrice', 'targetMedianPrice',
+              'recommendationKey', 'recommendationMean', 'numberOfAnalystOpinions'
+            ],
+          },
+        ];
+
+        // Track used keys to render any remaining items in an "OTHER METRICS" group
+        const usedKeys = new Set<string>();
+        categories.forEach((cat) => cat.keys.forEach((k) => usedKeys.add(k.toLowerCase())));
+
+        const remainingKeys = Object.keys(info).filter(
+          (k) => !ignoredKeys.has(k.toLowerCase()) && !usedKeys.has(k.toLowerCase())
+        );
+
+        if (remainingKeys.length > 0) {
+          categories.push({
+            title: '📋 OTHER STATISTICS & PERIOD EPOCHS',
+            keys: remainingKeys,
+          });
+        }
+
+        const renderValue = (val: any) => {
+          if (val === null || val === undefined) return <span class="text-gray-400 font-mono">null</span>;
+          if (typeof val === 'object') return <pre class="font-mono text-xs bg-gray-100 p-2 overflow-x-auto">{JSON.stringify(val, null, 2)}</pre>;
+          if (typeof val === 'number') return <span class="font-mono font-bold text-terminal-green">{val.toLocaleString()}</span>;
+          if (typeof val === 'boolean') return <span class="font-mono text-blue-600">{val ? 'TRUE' : 'FALSE'}</span>;
+          return <span class="font-mono text-black">{String(val)}</span>;
+        };
+
+        return (
+          <div class="space-y-6 mb-8">
+            {categories.map((cat) => {
+              const items = cat.keys
+                .map((k) => {
+                  const actualKey = Object.keys(info).find((x) => x.toLowerCase() === k.toLowerCase());
+                  return actualKey ? [actualKey, info[actualKey]] : null;
+                })
+                .filter((x): x is [string, any] => x !== null && x[1] !== undefined);
+
+              if (items.length === 0) return null;
+
+              return (
+                <section class="border border-black bg-white overflow-hidden">
+                  <div class="border-b border-black px-4 py-3 bg-gray-50 flex justify-between items-center text-xs font-bold uppercase tracking-wide">
+                    <span>{cat.title}</span>
+                    <span class="text-gray-500 font-mono">{items.length} METRICS</span>
+                  </div>
+
+                  <div class="divide-y divide-gray-200">
+                    {items.map(([key, val]) => (
+                      <div class="px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
+                        <span class="font-label-caps text-label-caps text-muted-gray uppercase font-bold tracking-wider md:w-1/3">{key}</span>
+                        <div class="md:w-2/3 text-sm text-right md:text-left">{renderValue(val)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
-        </div>
-        <div class="border border-black bg-white p-4">
-          <div class="font-label-caps text-label-caps text-muted-gray mb-2 border-b border-gray-200 pb-1">DEBT TO EQUITY</div>
-          <div class="font-headline-sm text-headline-sm font-bold text-primary">
-            {stockInfo()?.debtToEquity ? `${stockInfo()?.debtToEquity?.toFixed(2)}%` : 'N/A'}
+        );
+      })()}
+
+      {/* Raw Complete JSON Payload Inspector */}
+      {fullReport() && (
+        <section class="border border-black bg-white p-4 mb-8 overflow-hidden">
+          <div class="font-bold text-xs uppercase mb-2 border-b border-gray-200 pb-2 flex justify-between items-center">
+            <span>FULL 5-YEAR UNTRUNCATED JSON PAYLOAD ({selectedSymbol()})</span>
+            <span class="text-gray-500 font-mono">Fetched At: {fullReport()?.fetchedAt}</span>
           </div>
-        </div>
-        <div class="border border-black bg-white p-4">
-          <div class="font-label-caps text-label-caps text-muted-gray mb-2 border-b border-gray-200 pb-1">TOTAL CASH / DEBT</div>
-          <div class="font-code-md text-code-md font-bold text-primary">
-            {stockInfo()?.totalCash ? `$${(stockInfo()!.totalCash / 1e9).toFixed(1)}B` : '$0'} / {stockInfo()?.totalDebt ? `$${(stockInfo()!.totalDebt / 1e9).toFixed(1)}B` : '$0'}
-          </div>
-        </div>
-        <div class="border border-black bg-white p-4">
-          <div class="font-label-caps text-label-caps text-muted-gray mb-2 border-b border-gray-200 pb-1">PROFIT MARGIN</div>
-          <div class="font-headline-sm text-headline-sm font-bold text-terminal-green">
-            {stockInfo()?.profitMargins ? `${(stockInfo()!.profitMargins * 100).toFixed(2)}%` : 'N/A'}
-          </div>
-        </div>
-      </section>
+          <pre class="bg-gray-50 dark:bg-zinc-900 text-xs p-4 overflow-x-auto max-h-96 border border-gray-300 font-mono">
+            {JSON.stringify(fullReport(), null, 2)}
+          </pre>
+        </section>
+      )}
 
       {/* Trade History Table */}
       <section class="border border-black bg-white overflow-hidden">

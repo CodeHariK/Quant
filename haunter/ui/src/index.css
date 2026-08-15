@@ -76,15 +76,86 @@
 @layer base {
   body {
     font-family: 'JetBrains Mono', monospace;
-    background-color: #f9f9f9;
-    color: #000000;
+    background-color: var(--color-background);
+    color: var(--color-on-background);
     margin: 0;
     padding: 0;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   button, input[type="text"], input[type="date"], select, textarea, .border {
     border-radius: 0px;
   }
+}
+
+/* Dark Mode Theme Tokens override */
+.dark {
+  --color-surface: #0e1010;
+  --color-surface-dim: #161818;
+  --color-surface-bright: #1c1e1e;
+  --color-surface-container-lowest: #0a0b0b;
+  --color-surface-container-low: #121414;
+  --color-surface-container: #181a1a;
+  --color-surface-container-high: #202222;
+  --color-surface-container-highest: #282a2a;
+  --color-on-surface: #f1f1f1;
+  --color-on-surface-variant: #b0a8a9;
+  --color-inverse-surface: #f1f1f1;
+  --color-inverse-on-surface: #1a1c1c;
+  --color-outline: #544c4d;
+  --color-outline-variant: #3a3334;
+
+  --color-primary: #ffffff;
+  --color-on-primary: #000000;
+  --color-primary-container: #e2e2e2;
+  --color-on-primary-container: #1b1b1b;
+
+  --color-background: #090a0a;
+  --color-on-background: #f1f1f1;
+  --color-surface-variant: #282a2a;
+
+  --color-muted-gray: #a0a0a0;
+  --color-canvas-off-white: #121414;
+  --color-border-subtle: #2d3030;
+}
+
+.dark body {
+  background-color: #090a0a;
+  color: #f1f1f1;
+}
+
+.dark .bg-white {
+  background-color: #121414 !important;
+}
+
+.dark .bg-surface {
+  background-color: #0e1010 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #181a1a !important;
+}
+
+.dark .text-black {
+  color: #f1f1f1 !important;
+}
+
+.dark .text-gray-500 {
+  color: #a0a0a0 !important;
+}
+
+.dark .border-black {
+  border-color: #3f4444 !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #2a2e2e !important;
+}
+
+.dark select, .dark option {
+  background-color: #121414 !important;
+  color: #f1f1f1 !important;
+  border-color: #3f4444 !important;
 }
 
 .material-symbols-outlined {

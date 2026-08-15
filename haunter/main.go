@@ -12,9 +12,13 @@ import (
 	"haunter/store"
 )
 
+type WatchlistRequest struct {
+	Symbol string `json:"symbol"`
+}
+
 func main() {
-	fmt.Println("🚀 Starting Haunter Backend Server with BoltDB Cache...")
-	fmt.Println("---------------------------------------------------------------")
+	fmt.Println("🚀 Starting Haunter Backend Server with BoltDB Watchlist & Valuation Cache...")
+	fmt.Println("-----------------------------------------------------------------------------")
 
 	// Initialize embedded BoltDB store
 	st, err := store.InitStore()
@@ -29,7 +33,14 @@ func main() {
 	// 1. Full 5-Year Valuation Report REST endpoint on /api/valuation-report?symbol=RELIANCE.NS&force=false
 	http.HandleFunc("/api/valuation-report", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 
 		symbol := r.URL.Query().Get("symbol")
 		if symbol == "" {
@@ -45,6 +56,63 @@ func main() {
 		}
 
 		json.NewEncoder(w).Encode(report)
+	})
+
+	// 2. Watchlist Management REST Endpoints on /api/watchlist (GET, POST, DELETE)
+	http.HandleFunc("/api/watchlist", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			list, err := st.GetWatchlist()
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"watchlist": list})
+
+		case http.MethodPost:
+			var req WatchlistRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Symbol == "" {
+				http.Error(w, `{"error": "invalid payload, expected symbol field"}`, http.StatusBadRequest)
+				return
+			}
+			updated, err := st.AddWatchlistSymbol(req.Symbol)
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"watchlist": updated, "message": "Symbol added successfully"})
+
+		case http.MethodDelete:
+			symbol := r.URL.Query().Get("symbol")
+			if symbol == "" {
+				var req WatchlistRequest
+				_ = json.NewDecoder(r.Body).Decode(&req)
+				symbol = req.Symbol
+			}
+			if symbol == "" {
+				http.Error(w, `{"error": "symbol query parameter or json payload required"}`, http.StatusBadRequest)
+				return
+			}
+			updated, err := st.RemoveWatchlistSymbol(symbol)
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"watchlist": updated, "message": "Symbol removed successfully"})
+
+		default:
+			http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
+		}
 	})
 
 	// Background simulation ticker for live UI testing

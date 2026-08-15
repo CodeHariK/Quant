@@ -1,28 +1,5 @@
 export type EventType = 'market_ticker' | 'portfolio_update' | 'execution_log' | 'watchdog_update';
 
-export interface StockInfo {
-  symbol: string;
-  longName: string;
-  sector: string;
-  industry: string;
-  currentPrice: number;
-  marketCap: number;
-  trailingPE: number;
-  forwardPE: number;
-  priceToBook: number;
-  pegRatio: number;
-  bookValue: number;
-  ebitda: number;
-  totalCash: number;
-  totalDebt: number;
-  debtToEquity: number;
-  profitMargins: number;
-  operatingMargins: number;
-  fiftyTwoWeekHigh: number;
-  fiftyTwoWeekLow: number;
-  targetMeanPrice: number;
-}
-
 export interface FinancialStatementItem {
   period: string;
   values: Record<string, number>;
@@ -40,7 +17,7 @@ export interface HistoryBar {
 export interface FullValuationReport {
   symbol: string;
   fetchedAt: string;
-  info: StockInfo;
+  rawInfo: Record<string, any>;
   history: HistoryBar[];
   cashFlow: FinancialStatementItem[];
   incomeStatement: FinancialStatementItem[];
