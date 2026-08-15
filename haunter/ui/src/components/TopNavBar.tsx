@@ -8,8 +8,7 @@ export function TopNavBar() {
   const navItems = [
     { label: 'LIVE', path: '/dashboard' },
     { label: 'LEADERBOARD', path: '/leaderboard' },
-    { label: 'MODELS', path: '/model-detail' },
-    { label: 'BLOG', path: '/landing' },
+    { label: 'TICKER', path: '/ticker' },
     { label: 'ABOUT', path: '/landing' },
   ];
 
@@ -25,11 +24,10 @@ export function TopNavBar() {
             return (
               <a
                 href={item.path}
-                class={`transition-colors duration-100 font-label-caps text-label-caps ${
-                  isActive()
-                    ? 'text-primary font-bold border-b-2 border-primary pb-1'
-                    : 'text-muted-gray hover:text-primary'
-                }`}
+                class={`transition-colors duration-100 font-label-caps text-label-caps ${isActive()
+                  ? 'text-primary font-bold border-b-2 border-primary pb-1'
+                  : 'text-muted-gray hover:text-primary'
+                  }`}
               >
                 {item.label}
               </a>

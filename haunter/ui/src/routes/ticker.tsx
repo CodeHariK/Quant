@@ -3,10 +3,12 @@ import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Table } from '../components/Table';
+import { Input, FilledButton, OutlineButton } from '../components/FormControls';
+import { FinancialStatementViewer } from '../components/FinancialStatementViewer';
 import { fetchValuationReport, fetchWatchlist, addToWatchlist, removeFromWatchlist } from '../api/stockApi';
 import type { FullValuationReport } from '../types/events';
 
-export default function ModelDetail() {
+export default function Ticker() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Read initial symbol from URL query parameter (e.g. ?symbol=GVT%26D.NS or ?symbol=AAPL)
@@ -14,7 +16,7 @@ export default function ModelDetail() {
   const initialSymbol = rawSymbol ? decodeURIComponent(rawSymbol) : 'RELIANCE.NS';
 
   const [selectedSymbol, setSelectedSymbol] = createSignal<string>(initialSymbol);
-  const [watchlist, setWatchlist] = createSignal<string[]>(['RELIANCE.NS', 'TATAMOTORS.NS', 'INFY.NS', 'TCS.NS', 'AAPL', 'MSFT', 'NVDA']);
+  const [watchlist, setWatchlist] = createSignal<string[]>(['AAPL', 'NVDA']);
   const [newSymbolInput, setNewSymbolInput] = createSignal<string>('');
   const [fullReport, setFullReport] = createSignal<FullValuationReport | null>(null);
   const [loading, setLoading] = createSignal<boolean>(false);
@@ -93,7 +95,7 @@ export default function ModelDetail() {
 
   return (
     <PageLayout showSidebar={false}>
-      <Title>Model & Stock Valuation - ALPHA ARENA</Title>
+      <Title>Ticker Valuation Details - ALPHA ARENA</Title>
 
       {/* Watchlist Management & Asset Selector Bar */}
       <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -121,16 +123,16 @@ export default function ModelDetail() {
 
         {/* Add Symbol Form */}
         <form onSubmit={handleAddSymbol} class="flex items-center gap-2 w-full md:w-auto">
-          <input
+          <Input
             type="text"
             placeholder="ADD TICKER (e.g. AMZN, RELIANCE.NS)"
             value={newSymbolInput()}
             onInput={(e) => setNewSymbolInput(e.currentTarget.value)}
-            class="border border-black px-3 py-1 font-code-md text-code-md uppercase w-full md:w-64 bg-white"
+            class="w-full md:w-64"
           />
-          <button type="submit" class="bg-black text-white px-3 py-1 text-xs font-bold border border-black hover:bg-gray-800 uppercase cursor-pointer">
+          <FilledButton type="submit">
             + ADD
-          </button>
+          </FilledButton>
         </form>
       </div>
 
@@ -153,14 +155,13 @@ export default function ModelDetail() {
             </p>
           </div>
           <div class="flex gap-2 text-xs font-bold">
-            <button
+            <FilledButton
               onClick={() => loadStockReport(selectedSymbol(), true)}
-              disabled={loading()}
-              class="bg-black text-white px-4 py-2 border border-black hover:bg-gray-800 disabled:opacity-50 uppercase cursor-pointer"
+              loading={loading()}
             >
-              {loading() ? 'FETCHING...' : 'FORCE REFRESH 🔄'}
-            </button>
-            <button class="bg-transparent border border-black text-black px-4 py-2 hover:bg-gray-100 uppercase">EXPORT VALUATION</button>
+              FORCE REFRESH 🔄
+            </FilledButton>
+            <OutlineButton>EXPORT VALUATION</OutlineButton>
           </div>
         </div>
       </header>
@@ -272,6 +273,25 @@ export default function ModelDetail() {
           </div>
         );
       })()}
+
+      {/* 5-Year Annual Financial Statements (Balance Sheet, Income Statement, Cash Flow) */}
+      {fullReport() && (
+        <>
+          <FinancialStatementViewer
+            title="BALANCE SHEET STATEMENT (5-YEAR)"
+            data={fullReport()?.balanceSheet}
+          />
+          <FinancialStatementViewer
+            title="INCOME STATEMENT (5-YEAR)"
+            data={fullReport()?.incomeStatement}
+          />
+          <FinancialStatementViewer
+            title="CASH FLOW STATEMENT (5-YEAR)"
+            data={fullReport()?.cashFlow}
+            allowChart={false}
+          />
+        </>
+      )}
 
       {/* Raw Complete JSON Payload Inspector */}
       {fullReport() && (

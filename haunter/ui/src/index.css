@@ -152,10 +152,33 @@
   border-color: #2a2e2e !important;
 }
 
-.dark select, .dark option {
+.dark select, .dark option, .dark input {
   background-color: #121414 !important;
   color: #f1f1f1 !important;
   border-color: #3f4444 !important;
+}
+
+.dark input::placeholder {
+  color: #71717a !important;
+}
+
+/* Dark Mode Filled & Outline Buttons */
+.dark .bg-black {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+.dark .bg-black:hover {
+  background-color: #e4e4e7 !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: #202222 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #242626 !important;
 }
 
 .material-symbols-outlined {

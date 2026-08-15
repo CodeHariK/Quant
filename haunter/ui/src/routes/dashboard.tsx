@@ -1,8 +1,9 @@
 import { Title } from '@solidjs/meta';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
-import { Card, PositionCard } from '../components/Card';
+import { Card } from '../components/Card';
 import { Table } from '../components/Table';
+import { Input, FilledButton, OutlineButton } from '../components/FormControls';
 import { fetchKitePortfolio, fetchKiteSession, saveKiteSession, type KitePortfolioReport } from '../api/stockApi';
 
 export default function Dashboard() {
@@ -82,46 +83,33 @@ export default function Dashboard() {
           </div>
 
           <form onSubmit={handleKiteAuthenticate} class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">API KEY</label>
-              <input
-                type="text"
-                placeholder="e.g. 12345xyz"
-                value={apiKeyInput()}
-                onInput={(e) => setApiKeyInput(e.currentTarget.value)}
-                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
-                required
-              />
-            </div>
-            <div>
-              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">API SECRET</label>
-              <input
-                type="password"
-                placeholder="e.g. secretabc..."
-                value={apiSecretInput()}
-                onInput={(e) => setApiSecretInput(e.currentTarget.value)}
-                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
-                required
-              />
-            </div>
-            <div>
-              <label class="font-label-caps text-label-caps text-muted-gray block mb-1">REQUEST TOKEN (FROM OAUTH CALLBACK)</label>
-              <input
-                type="text"
-                placeholder="e.g. req_tok_123..."
-                value={requestTokenInput()}
-                onInput={(e) => setRequestTokenInput(e.currentTarget.value)}
-                class="border border-black p-2 font-code-md text-code-md w-full bg-white"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading()}
-              class="bg-black text-white p-2.5 font-label-caps text-label-caps font-bold hover:bg-gray-800 uppercase cursor-pointer"
-            >
-              {loading() ? 'CONNECTING...' : 'CONNECT ZERODHA KITE 🔑'}
-            </button>
+            <Input
+              label="API KEY"
+              type="text"
+              placeholder="e.g. 12345xyz"
+              value={apiKeyInput()}
+              onInput={(e) => setApiKeyInput(e.currentTarget.value)}
+              required
+            />
+            <Input
+              label="API SECRET"
+              type="password"
+              placeholder="e.g. secretabc..."
+              value={apiSecretInput()}
+              onInput={(e) => setApiSecretInput(e.currentTarget.value)}
+              required
+            />
+            <Input
+              label="REQUEST TOKEN (FROM OAUTH CALLBACK)"
+              type="text"
+              placeholder="e.g. req_tok_123..."
+              value={requestTokenInput()}
+              onInput={(e) => setRequestTokenInput(e.currentTarget.value)}
+              required
+            />
+            <FilledButton type="submit" loading={loading()} class="py-2.5">
+              CONNECT ZERODHA KITE 🔑
+            </FilledButton>
           </form>
           {authError() && <div class="font-code-md text-code-md text-critical-red mt-3">{authError()}</div>}
         </Card>
@@ -131,9 +119,9 @@ export default function Dashboard() {
             <span class="w-3 h-3 bg-terminal-green inline-block border border-black"></span>
             <span class="font-bold uppercase">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</span>
           </div>
-          <button onClick={loadPortfolio} class="border border-black px-3 py-1 font-bold uppercase hover:bg-gray-100 cursor-pointer">
+          <OutlineButton onClick={loadPortfolio}>
             REFRESH PORTFOLIO 🔄
-          </button>
+          </OutlineButton>
         </div>
       )}
 
