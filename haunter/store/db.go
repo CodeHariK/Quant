@@ -17,7 +17,22 @@ const (
 	watchlistKey    = "user_watchlist"
 	kiteBucket      = "KiteSession"
 	kiteSessionKey  = "user_kite_session"
+	tradebookBucket = "TradebookRecords"
 )
+
+type TradebookRecord struct {
+	Symbol          string    `json:"symbol"`
+	ISIN            string    `json:"isin,omitempty"`
+	TradeID         string    `json:"tradeId"`
+	OrderID         string    `json:"orderId"`
+	Exchange        string    `json:"exchange"`
+	Segment         string    `json:"segment"`
+	TransactionType string    `json:"transactionType"`
+	Quantity        float64   `json:"quantity"`
+	Price           float64   `json:"price"`
+	TradeDate       time.Time `json:"tradeDate"`
+	Year            int       `json:"year"`
+}
 
 type Store struct {
 	db *bolt.DB
@@ -32,7 +47,7 @@ type KiteSessionData struct {
 
 var globalStore *Store
 
-// InitStore opens embedded BoltDB and creates ValuationReports, Watchlist, and KiteSession buckets
+// InitStore opens embedded BoltDB and creates ValuationReports, Watchlist, KiteSession, and TradebookRecords buckets
 func InitStore() (*Store, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
@@ -47,6 +62,9 @@ func InitStore() (*Store, error) {
 			return err
 		}
 		if _, err := tx.CreateBucketIfNotExists([]byte(kiteBucket)); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(tradebookBucket)); err != nil {
 			return err
 		}
 		return nil
@@ -258,4 +276,62 @@ func (s *Store) DeleteKiteSession() error {
 		}
 		return b.Delete([]byte(kiteSessionKey))
 	})
+}
+
+// SaveTradebookRecords persists parsed Zerodha Tradebook records to BoltDB
+func (s *Store) SaveTradebookRecords(records []TradebookRecord) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(tradebookBucket))
+		if b == nil {
+			return fmt.Errorf("tradebook bucket not found")
+		}
+
+		for _, r := range records {
+			key := fmt.Sprintf("%d_%s_%s_%s", r.Year, r.Symbol, r.TradeID, r.TradeDate.Format("20060102150405"))
+			data, err := json.Marshal(r)
+			if err != nil {
+				continue
+			}
+			if err := b.Put([]byte(key), data); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// GetTradebookRecords fetches all stored Tradebook records, optionally filtered by year
+func (s *Store) GetTradebookRecords(yearFilter int) ([]TradebookRecord, []int, error) {
+	var records []TradebookRecord
+	yearsMap := make(map[int]bool)
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(tradebookBucket))
+		if b == nil {
+			return nil
+		}
+
+		return b.ForEach(func(k, v []byte) error {
+			var rec TradebookRecord
+			if err := json.Unmarshal(v, &rec); err != nil {
+				return nil
+			}
+
+			if rec.Year > 0 {
+				yearsMap[rec.Year] = true
+			}
+
+			if yearFilter <= 0 || rec.Year == yearFilter {
+				records = append(records, rec)
+			}
+			return nil
+		})
+	})
+
+	years := make([]int, 0, len(yearsMap))
+	for y := range yearsMap {
+		years = append(years, y)
+	}
+
+	return records, years, err
 }

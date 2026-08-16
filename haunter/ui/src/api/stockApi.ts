@@ -111,3 +111,42 @@ export async function deleteKiteSession() {
   }
   return response.json();
 }
+
+export interface TradebookRecord {
+  symbol: string;
+  isin?: string;
+  tradeId: string;
+  orderId: string;
+  exchange: string;
+  segment: string;
+  transactionType: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  tradeDate: string;
+  year: number;
+}
+
+export async function uploadTradebookCSV(file: File): Promise<{ success: boolean; importedCount: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/tradebook`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || 'Failed to upload tradebook CSV');
+  }
+  return response.json();
+}
+
+export async function fetchTradebookRecords(year?: number): Promise<{ records: TradebookRecord[]; availableYears: number[]; count: number }> {
+  const url = `${API_BASE_URL}/api/tradebook${year ? `?year=${year}` : ''}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch tradebook records');
+  }
+  return response.json();
+}
