@@ -1,12 +1,15 @@
 import { Title } from '@solidjs/meta';
+import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Card } from '../components/Card';
 import { Table } from '../components/Table';
 import { Input, FilledButton, OutlineButton } from '../components/FormControls';
-import { fetchKitePortfolio, fetchKiteSession, saveKiteSession, type KitePortfolioReport } from '../api/stockApi';
+import { Text } from '../components/Text';
+import { fetchKitePortfolio, fetchKiteSession, saveKiteSession, deleteKiteSession, type KitePortfolioReport } from '../api/stockApi';
 
 export default function Dashboard() {
+  const [searchParams] = useSearchParams();
   const [kiteReport, setKiteReport] = createSignal<KitePortfolioReport | null>(null);
   const [kiteAuth, setKiteAuth] = createSignal<boolean>(false);
   const [apiKeyInput, setApiKeyInput] = createSignal<string>('');
@@ -23,21 +26,67 @@ export default function Dashboard() {
         setKiteAuth(true);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         setKiteAuth(false);
         setLoading(false);
       });
   };
 
+  const handleKiteLogout = () => {
+    deleteKiteSession()
+      .then(() => {
+        setKiteAuth(false);
+        setKiteReport(null);
+        setRequestTokenInput('');
+      })
+      .catch(() => {
+        setKiteAuth(false);
+        setKiteReport(null);
+      });
+  };
+
+  // Load saved API Key & Secret from localStorage if available
   createEffect(
     () => true,
     () => {
+      const savedKey = localStorage.getItem('haunter_kite_api_key');
+      const savedSecret = localStorage.getItem('haunter_kite_api_secret');
+      if (savedKey) setApiKeyInput(savedKey);
+      if (savedSecret) setApiSecretInput(savedSecret);
+
       fetchKiteSession().then((res) => {
         if (res.authenticated) {
           setKiteAuth(true);
+          if (res.apiKey) setApiKeyInput(res.apiKey);
           loadPortfolio();
         }
       });
+
+      // Auto-extract request_token if redirected back from Zerodha login & auto-authenticate
+      const reqTok = Array.isArray(searchParams.request_token)
+        ? searchParams.request_token[0]
+        : searchParams.request_token;
+
+      if (reqTok) {
+        const decodedToken = decodeURIComponent(reqTok);
+        setRequestTokenInput(decodedToken);
+
+        const currentKey = apiKeyInput().trim() || localStorage.getItem('haunter_kite_api_key') || '';
+        const currentSecret = apiSecretInput().trim() || localStorage.getItem('haunter_kite_api_secret') || '';
+
+        if (currentKey && currentSecret && decodedToken) {
+          setLoading(true);
+          saveKiteSession(currentKey, currentSecret, decodedToken)
+            .then(() => {
+              setKiteAuth(true);
+              loadPortfolio();
+            })
+            .catch((err) => {
+              setAuthError(`Auto-login error: ${err.message}`);
+              setLoading(false);
+            });
+        }
+      }
     }
   );
 
@@ -46,7 +95,12 @@ export default function Dashboard() {
     setAuthError(null);
     setLoading(true);
 
-    saveKiteSession(apiKeyInput().trim(), apiSecretInput().trim(), requestTokenInput().trim())
+    const key = apiKeyInput().trim();
+    const secret = apiSecretInput().trim();
+    localStorage.setItem('haunter_kite_api_key', key);
+    localStorage.setItem('haunter_kite_api_secret', secret);
+
+    saveKiteSession(key, secret, requestTokenInput().trim())
       .then(() => {
         setKiteAuth(true);
         loadPortfolio();
@@ -55,6 +109,19 @@ export default function Dashboard() {
         setAuthError(err.message);
         setLoading(false);
       });
+  };
+
+  const handleSaveCredentials = () => {
+    const key = apiKeyInput().trim();
+    const secret = apiSecretInput().trim();
+    if (key) localStorage.setItem('haunter_kite_api_key', key);
+    if (secret) localStorage.setItem('haunter_kite_api_secret', secret);
+  };
+
+  const getKiteLoginUrl = () => {
+    const key = apiKeyInput().trim();
+    if (!key) return '#';
+    return `https://kite.zerodha.com/connect/login?v=3&api_key=${encodeURIComponent(key)}`;
   };
 
   return (
@@ -66,12 +133,12 @@ export default function Dashboard() {
         <Card containerClass="border border-black bg-white p-6">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-gray-200 pb-4">
             <div>
-              <h2 class="font-headline-md text-headline-md uppercase font-bold text-black flex items-center gap-2">
+              <Text variant="h2" class="flex items-center gap-2">
                 <span>⚡ ZERODHA KITECONNECT INTEGRATION</span>
-              </h2>
-              <p class="font-code-md text-code-md text-muted-gray mt-1">
+              </Text>
+              <Text variant="muted" class="mt-1 block">
                 Authenticate with your Zerodha KiteConnect API key to load live equity holdings, position P&L, and executed trade logs.
-              </p>
+              </Text>
             </div>
             <a
               href="https://kite.trade/"
@@ -82,13 +149,17 @@ export default function Dashboard() {
             </a>
           </div>
 
-          <form onSubmit={handleKiteAuthenticate} class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <Input
               label="API KEY"
               type="text"
               placeholder="e.g. 12345xyz"
               value={apiKeyInput()}
-              onInput={(e) => setApiKeyInput(e.currentTarget.value)}
+              onInput={(e) => {
+                const val = e.currentTarget.value;
+                setApiKeyInput(val);
+                localStorage.setItem('haunter_kite_api_key', val.trim());
+              }}
               required
             />
             <Input
@@ -96,33 +167,46 @@ export default function Dashboard() {
               type="password"
               placeholder="e.g. secretabc..."
               value={apiSecretInput()}
-              onInput={(e) => setApiSecretInput(e.currentTarget.value)}
+              onInput={(e) => {
+                const val = e.currentTarget.value;
+                setApiSecretInput(val);
+                localStorage.setItem('haunter_kite_api_secret', val.trim());
+              }}
               required
             />
-            <Input
-              label="REQUEST TOKEN (FROM OAUTH CALLBACK)"
-              type="text"
-              placeholder="e.g. req_tok_123..."
-              value={requestTokenInput()}
-              onInput={(e) => setRequestTokenInput(e.currentTarget.value)}
-              required
-            />
-            <FilledButton type="submit" loading={loading()} class="py-2.5">
-              CONNECT ZERODHA KITE 🔑
-            </FilledButton>
-          </form>
+            <div class="flex items-center">
+              {apiKeyInput().trim() && apiSecretInput().trim() ? (
+                <a href={getKiteLoginUrl()} target="_blank" class="w-full">
+                  <FilledButton class="w-full py-3">
+                    LOGIN WITH ZERODHA 🔑 ↗
+                  </FilledButton>
+                </a>
+              ) : (
+                <OutlineButton disabled class="w-full py-3 opacity-50 cursor-not-allowed">
+                  Enter Key & Secret to Login
+                </OutlineButton>
+              )}
+            </div>
+          </div>
           {authError() && <div class="font-code-md text-code-md text-critical-red mt-3">{authError()}</div>}
         </Card>
       ) : (
-        <div class="border border-black bg-white p-4 flex justify-between items-center text-xs">
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 bg-terminal-green inline-block border border-black"></span>
-            <span class="font-bold uppercase">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</span>
+        <Card containerClass="border border-black bg-white p-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 bg-terminal-green inline-block border border-black"></span>
+              <Text variant="h3" class="text-xs">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</Text>
+            </div>
+            <div class="flex items-center gap-2">
+              <OutlineButton onClick={loadPortfolio} size="sm">
+                REFRESH PORTFOLIO 🔄
+              </OutlineButton>
+              <OutlineButton onClick={handleKiteLogout} size="sm" class="border-critical-red text-critical-red">
+                LOGOUT 🚪
+              </OutlineButton>
+            </div>
           </div>
-          <OutlineButton onClick={loadPortfolio}>
-            REFRESH PORTFOLIO 🔄
-          </OutlineButton>
-        </div>
+        </Card>
       )}
 
       {/* Equity Holdings Table from KiteConnect */}
@@ -135,23 +219,54 @@ export default function Dashboard() {
         >
           <Table
             columns={[
-              { header: 'SYMBOL', accessor: 'tradingsymbol', className: 'p-3 font-bold text-black' },
-              { header: 'EXCHANGE', accessor: 'exchange', className: 'p-3 text-gray-500' },
-              { header: 'QTY', accessor: 'quantity', className: 'p-3 font-mono' },
-              { header: 'AVG PRICE', cell: (r) => `₹${r.averagePrice.toFixed(2)}`, className: 'p-3 font-mono' },
-              { header: 'LAST PRICE', cell: (r) => `₹${r.lastPrice.toFixed(2)}`, className: 'p-3 font-mono' },
+              {
+                header: 'SYMBOL',
+                cell: (r) => <Text variant="code" class="font-bold">{r.tradingsymbol}</Text>,
+                className: 'p-3',
+                aggregate: 'count',
+              },
+              {
+                header: 'EXCHANGE',
+                cell: (r) => <Text variant="code">{r.exchange}</Text>,
+                className: 'p-3',
+              },
+              {
+                header: 'QTY',
+                cell: (r) => <Text variant="code">{r.quantity}</Text>,
+                className: 'p-3',
+                sortValue: (r) => r.quantity,
+                aggregate: 'sum',
+              },
+              {
+                header: 'AVG PRICE',
+                cell: (r) => <Text variant="code">₹{r.averagePrice.toFixed(2)}</Text>,
+                className: 'p-3',
+                sortValue: (r) => r.averagePrice,
+                aggregate: 'avg',
+                aggregateFormatter: (v) => `₹${v.toFixed(2)}`,
+              },
+              {
+                header: 'LAST PRICE',
+                cell: (r) => <Text variant="code">₹{r.lastPrice.toFixed(2)}</Text>,
+                className: 'p-3',
+                sortValue: (r) => r.lastPrice,
+              },
               {
                 header: 'P&L (INR)',
                 cell: (r) => (
-                  <span class={`font-bold ${r.pnl >= 0 ? 'text-terminal-green' : 'text-critical-red'}`}>
+                  <Text variant={r.pnl >= 0 ? 'success' : 'error'}>
                     {r.pnl >= 0 ? `+₹${r.pnl.toFixed(2)}` : `-₹${Math.abs(r.pnl).toFixed(2)}`}
-                  </span>
+                  </Text>
                 ),
                 align: 'right',
                 className: 'p-3 text-right',
+                sortValue: (r) => r.pnl,
+                aggregate: 'sum',
+                aggregateFormatter: (v) => (v >= 0 ? `+₹${v.toFixed(2)}` : `-₹${Math.abs(v).toFixed(2)}`),
               },
             ]}
             data={kiteReport()!.holdings}
+            showSummary
           />
         </Card>
       )}
@@ -168,22 +283,38 @@ export default function Dashboard() {
             columns={[
               {
                 header: 'DATE & TIMESTAMP',
-                cell: (r) => <span class="font-mono text-gray-600">{new Date(r.tradeTimestamp).toLocaleString()}</span>,
+                cell: (r) => <Text variant="muted">{new Date(r.tradeTimestamp).toLocaleString()}</Text>,
                 className: 'p-3',
               },
-              { header: 'SYMBOL', accessor: 'tradingsymbol', className: 'p-3 font-bold text-black' },
+              {
+                header: 'SYMBOL',
+                cell: (r) => <Text variant="code" class="font-bold">{r.tradingsymbol}</Text>,
+                className: 'p-3',
+              },
               {
                 header: 'TYPE',
                 cell: (r) => (
-                  <span class={`font-bold px-2 py-0.5 text-xs ${r.transactionType === 'BUY' ? 'bg-terminal-green/20 text-green-800' : 'bg-critical-red/20 text-red-800'}`}>
+                  <Text variant={r.transactionType === 'BUY' ? 'success' : 'error'}>
                     {r.transactionType}
-                  </span>
+                  </Text>
                 ),
                 className: 'p-3',
               },
-              { header: 'QTY', accessor: 'quantity', className: 'p-3 font-mono' },
-              { header: 'AVG EXECUTION PRICE', cell: (r) => `₹${r.averagePrice.toFixed(2)}`, className: 'p-3 font-mono' },
-              { header: 'ORDER ID', accessor: 'orderId', className: 'p-3 font-mono text-gray-500 text-xs' },
+              {
+                header: 'QTY',
+                cell: (r) => <Text variant="code">{r.quantity}</Text>,
+                className: 'p-3',
+              },
+              {
+                header: 'AVG EXECUTION PRICE',
+                cell: (r) => <Text variant="code">₹{r.averagePrice.toFixed(2)}</Text>,
+                className: 'p-3',
+              },
+              {
+                header: 'ORDER ID',
+                cell: (r) => <Text variant="muted">{r.orderId}</Text>,
+                className: 'p-3',
+              },
             ]}
             data={kiteReport()!.tradeHistory}
           />

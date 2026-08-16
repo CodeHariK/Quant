@@ -1,6 +1,8 @@
 import { createSignal } from 'solid-js';
 import { Card } from './Card';
+import { Table, Column } from './Table';
 import { FilledButton, OutlineButton } from './FormControls';
+import { Text } from './Text';
 import type { FinancialStatementItem } from '../types/events';
 
 export interface FinancialStatementViewerProps {
@@ -37,20 +39,51 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
     return val.toLocaleString();
   };
 
+  // Build dynamic table column definitions compatible with shared Table component
+  const statementColumns: Column<Record<string, any>>[] = [
+    {
+      header: 'LINE ITEM METRIC',
+      cell: (row) => <Text variant="code" class="font-bold">{row.metric}</Text>,
+      className: 'p-3 border-r border-black font-bold min-w-[240px]',
+    },
+    ...periods.map((p) => ({
+      header: p,
+      cell: (row: any) => {
+        const val = row[p];
+        const isNeg = val !== undefined && val < 0;
+        return (
+          <Text variant={isNeg ? 'error' : 'success'}>
+            {formatNumber(val)}
+          </Text>
+        );
+      },
+      align: 'right' as const,
+      className: 'p-3 border-r border-black text-right min-w-[120px]',
+    })),
+  ];
+
+  const statementTableData = allMetricKeys.map((metric) => {
+    const row: Record<string, any> = { metric };
+    periods.forEach((p) => {
+      row[p] = periodDataMap.get(p)?.[metric];
+    });
+    return row;
+  });
+
   return (
     <Card containerClass="border border-black bg-white p-6 mb-8">
       {/* Header with Statement Title and Table/Chart Toggle */}
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-gray-200 pb-4">
         <div>
-          <h2 class="font-headline-md text-headline-md uppercase font-bold text-black dark:text-white flex items-center gap-2">
-            <span>📑 {props.title}</span>
-            <span class="text-xs font-mono font-normal text-muted-gray border border-gray-300 dark:border-zinc-700 px-2 py-0.5">
+          <div class="flex items-center gap-2 mb-1">
+            <Text variant="h2">📑 {props.title}</Text>
+            <Text variant="muted" class="border border-gray-300 dark:border-zinc-700 px-2 py-0.5">
               {periods.length} FISCAL YEARS
-            </span>
-          </h2>
-          <p class="font-code-md text-code-md text-muted-gray mt-1">
+            </Text>
+          </div>
+          <Text variant="muted" class="block">
             Complete annual line items with multi-year comparison view.
-          </p>
+          </Text>
         </div>
 
         {allowChart() && (
@@ -78,45 +111,19 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
         )}
       </div>
 
-      {/* View Mode 1: Multi-Year Comparison Table */}
+      {/* View Mode 1: Multi-Year Comparison Table using shared Table component */}
       {viewMode() === 'table' && (
-        <div class="overflow-x-auto border border-black dark:border-zinc-800">
-          <table class="w-full text-left text-xs font-mono border-collapse">
-            <thead>
-              <tr class="bg-gray-100 dark:bg-zinc-800 border-b border-black text-black dark:text-white">
-                <th class="p-3 font-bold uppercase tracking-wider min-w-[240px]">LINE ITEM METRIC</th>
-                {periods.map((p) => (
-                  <th class="p-3 font-bold text-right tracking-wider min-w-[120px] border-l border-gray-200 dark:border-zinc-700">
-                    {p}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
-              {allMetricKeys.map((metric) => (
-                <tr class="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
-                  <td class="p-3 font-bold text-black dark:text-white">{metric}</td>
-                  {periods.map((p) => {
-                    const val = periodDataMap.get(p)?.[metric];
-                    const isNeg = val !== undefined && val < 0;
-                    return (
-                      <td class={`p-3 text-right border-l border-gray-200 dark:border-zinc-700 font-mono ${isNeg ? 'text-critical-red font-bold' : 'text-terminal-green font-bold'}`}>
-                        {formatNumber(val)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          columns={statementColumns}
+          data={statementTableData}
+        />
       )}
 
       {/* View Mode 2: Metric Trend Bar Chart */}
       {viewMode() === 'chart' && (
         <div class="flex flex-col gap-6">
           <div class="flex items-center gap-3">
-            <label class="font-label-caps text-label-caps text-muted-gray uppercase font-bold">SELECT METRIC TO PLOT:</label>
+            <Text variant="label">SELECT METRIC TO PLOT:</Text>
             <select
               value={selectedMetric()}
               onChange={(e) => setSelectedMetric(e.currentTarget.value)}
@@ -129,9 +136,9 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
           </div>
 
           <div class="border border-black dark:border-zinc-800 p-6 bg-gray-50 dark:bg-zinc-900 flex flex-col items-center">
-            <h3 class="font-bold text-sm uppercase mb-4 text-black dark:text-white">
+            <Text variant="h3" class="text-sm mb-4">
               {selectedMetric()} 5-YEAR HISTORICAL TREND
-            </h3>
+            </Text>
 
             {/* Custom Interactive Bar Chart SVG */}
             {(() => {
@@ -161,7 +168,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
                         ></div>
 
                         {/* Year Label */}
-                        <span class="font-mono text-xs font-bold text-black dark:text-white mt-2">{p.substring(0, 4)}</span>
+                        <Text variant="code" class="font-bold mt-2">{p.substring(0, 4)}</Text>
                       </div>
                     );
                   })}

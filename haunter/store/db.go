@@ -248,3 +248,14 @@ func (s *Store) GetKiteSession() (*KiteSessionData, bool) {
 	}
 	return &session, true
 }
+
+// DeleteKiteSession removes stored Zerodha session & access token from BoltDB
+func (s *Store) DeleteKiteSession() error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(kiteBucket))
+		if b == nil {
+			return nil
+		}
+		return b.Delete([]byte(kiteSessionKey))
+	})
+}

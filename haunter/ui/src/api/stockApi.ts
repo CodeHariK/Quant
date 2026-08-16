@@ -101,3 +101,13 @@ export async function saveKiteSession(apiKey: string, apiSecret: string, request
   }
   return response.json();
 }
+
+export async function deleteKiteSession() {
+  const response = await fetch(`${API_BASE_URL}/api/kite/session`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to logout Zerodha KiteConnect session');
+  }
+  return response.json();
+}

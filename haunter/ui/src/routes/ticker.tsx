@@ -5,6 +5,7 @@ import { PageLayout } from '../components/PageLayout';
 import { Table } from '../components/Table';
 import { Input, FilledButton, OutlineButton } from '../components/FormControls';
 import { FinancialStatementViewer } from '../components/FinancialStatementViewer';
+import { Text } from '../components/Text';
 import { fetchValuationReport, fetchWatchlist, addToWatchlist, removeFromWatchlist } from '../api/stockApi';
 import type { FullValuationReport } from '../types/events';
 
@@ -100,7 +101,7 @@ export default function Ticker() {
       {/* Watchlist Management & Asset Selector Bar */}
       <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <label class="font-label-caps text-label-caps text-muted-gray uppercase">WATCHLIST (BOLTDB):</label>
+          <Text variant="label">WATCHLIST (BOLTDB):</Text>
           <div class="flex flex-wrap items-center gap-2">
             {watchlist().map((sym) => (
               <div
@@ -108,7 +109,7 @@ export default function Ticker() {
                 class={`px-3 py-1 text-xs font-bold uppercase cursor-pointer border flex items-center gap-2 transition-colors ${selectedSymbol() === sym ? 'bg-black text-white border-black' : 'bg-surface hover:bg-gray-100 border-gray-300 text-black'
                   }`}
               >
-                <span>{sym}</span>
+                <Text variant="code" class={selectedSymbol() === sym ? 'text-white dark:text-black font-bold' : 'font-bold'}>{sym}</Text>
                 <span
                   onClick={(e) => handleRemoveSymbol(sym, e)}
                   class="material-symbols-outlined text-[14px] opacity-60 hover:opacity-100 hover:text-critical-red"
@@ -136,8 +137,8 @@ export default function Ticker() {
         </form>
       </div>
 
-      {loading() && <div class="font-code-md text-code-md text-muted-gray mb-4 animate-pulse">Loading stock report from BoltDB cache...</div>}
-      {error() && <div class="font-code-md text-code-md text-critical-red mb-4">{error()}</div>}
+      {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading stock report from BoltDB cache...</Text>}
+      {error() && <Text variant="error" class="mb-4 block">{error()}</Text>}
 
       {/* Model & Stock Header */}
       <header class="border border-black bg-white p-6 relative mb-8">
@@ -146,13 +147,13 @@ export default function Ticker() {
           <div>
             <div class="flex items-center gap-3 mb-2 text-xs">
               <span class="w-3 h-3 bg-[#00FF41] inline-block border border-black"></span>
-              <span class="uppercase font-bold">VALUATION ENGINE: YFINANCE (FULL RAW DATA)</span>
-              <span class="text-gray-500 border border-gray-200 px-2 py-0.5 ml-2 font-bold">{stockInfo()?.symbol || selectedSymbol()}</span>
+              <Text variant="label">VALUATION ENGINE: YFINANCE (FULL RAW DATA)</Text>
+              <Text variant="code" class="border border-gray-200 px-2 py-0.5 ml-2 font-bold">{stockInfo()?.symbol || selectedSymbol()}</Text>
             </div>
-            <h1 class="text-3xl text-black uppercase tracking-tight font-bold">{stockInfo()?.longName || selectedSymbol()}</h1>
-            <p class="text-xs text-gray-500 mt-2 font-mono">
+            <Text variant="h1" class="block">{stockInfo()?.longName || selectedSymbol()}</Text>
+            <Text variant="muted" class="mt-2 block">
               SECTOR: {stockInfo()?.sector || 'N/A'} | INDUSTRY: {stockInfo()?.industry || 'N/A'}
-            </p>
+            </Text>
           </div>
           <div class="flex gap-2 text-xs font-bold">
             <FilledButton
@@ -233,11 +234,11 @@ export default function Ticker() {
         }
 
         const renderValue = (val: any) => {
-          if (val === null || val === undefined) return <span class="text-gray-400 font-mono">null</span>;
+          if (val === null || val === undefined) return <Text variant="muted">null</Text>;
           if (typeof val === 'object') return <pre class="font-mono text-xs bg-gray-100 p-2 overflow-x-auto">{JSON.stringify(val, null, 2)}</pre>;
-          if (typeof val === 'number') return <span class="font-mono font-bold text-terminal-green">{val.toLocaleString()}</span>;
-          if (typeof val === 'boolean') return <span class="font-mono text-blue-600">{val ? 'TRUE' : 'FALSE'}</span>;
-          return <span class="font-mono text-black">{String(val)}</span>;
+          if (typeof val === 'number') return <Text variant="success">{val.toLocaleString()}</Text>;
+          if (typeof val === 'boolean') return <Text variant="accent">{val ? 'TRUE' : 'FALSE'}</Text>;
+          return <Text variant="code">{String(val)}</Text>;
         };
 
         return (
@@ -255,14 +256,14 @@ export default function Ticker() {
               return (
                 <section class="border border-black bg-white overflow-hidden">
                   <div class="border-b border-black px-4 py-3 bg-gray-50 flex justify-between items-center text-xs font-bold uppercase tracking-wide">
-                    <span>{cat.title}</span>
-                    <span class="text-gray-500 font-mono">{items.length} METRICS</span>
+                    <Text variant="h3" class="text-xs">{cat.title}</Text>
+                    <Text variant="muted">{items.length} METRICS</Text>
                   </div>
 
                   <div class="divide-y divide-gray-200">
                     {items.map(([key, val]) => (
                       <div class="px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
-                        <span class="font-label-caps text-label-caps text-muted-gray uppercase font-bold tracking-wider md:w-1/3">{key}</span>
+                        <Text variant="label" class="md:w-1/3">{key}</Text>
                         <div class="md:w-2/3 text-sm text-right md:text-left">{renderValue(val)}</div>
                       </div>
                     ))}
@@ -297,8 +298,8 @@ export default function Ticker() {
       {fullReport() && (
         <section class="border border-black bg-white p-4 mb-8 overflow-hidden">
           <div class="font-bold text-xs uppercase mb-2 border-b border-gray-200 pb-2 flex justify-between items-center">
-            <span>FULL 5-YEAR UNTRUNCATED JSON PAYLOAD ({selectedSymbol()})</span>
-            <span class="text-gray-500 font-mono">Fetched At: {fullReport()?.fetchedAt}</span>
+            <Text variant="label">FULL 5-YEAR UNTRUNCATED JSON PAYLOAD ({selectedSymbol()})</Text>
+            <Text variant="muted">Fetched At: {fullReport()?.fetchedAt}</Text>
           </div>
           <pre class="bg-gray-50 dark:bg-zinc-900 text-xs p-4 overflow-x-auto max-h-96 border border-gray-300 font-mono">
             {JSON.stringify(fullReport(), null, 2)}
@@ -309,23 +310,39 @@ export default function Ticker() {
       {/* Trade History Table */}
       <section class="border border-black bg-white overflow-hidden">
         <div class="border-b border-gray-200 p-3 bg-gray-50 flex justify-between items-center text-xs">
-          <span class="font-bold uppercase">RECENT EXECUTION LOG</span>
-          <span class="text-gray-500">Showing last 5 trades</span>
+          <Text variant="h3" class="text-xs">RECENT EXECUTION LOG</Text>
+          <Text variant="muted">Showing last 5 trades</Text>
         </div>
         <Table
           columns={[
-            { header: 'TIMESTAMP', accessor: 'timestamp', className: 'p-3 text-gray-500' },
-            { header: 'SYMBOL', accessor: 'symbol', className: 'p-3 font-bold text-black' },
             {
-              header: 'TYPE',
-              cell: (row) => <span class={`font-bold ${row.type === 'LONG' ? 'text-[#008800]' : 'text-[#FF3B30]'}`}>{row.type}</span>,
+              header: 'TIMESTAMP',
+              cell: (row) => <Text variant="muted">{row.timestamp}</Text>,
               className: 'p-3',
             },
-            { header: 'ENTRY', accessor: 'entry', className: 'p-3 text-black' },
-            { header: 'EXIT', accessor: 'exit', className: 'p-3 text-black' },
+            {
+              header: 'SYMBOL',
+              cell: (row) => <Text variant="code" class="font-bold">{row.symbol}</Text>,
+              className: 'p-3',
+            },
+            {
+              header: 'TYPE',
+              cell: (row) => <Text variant={row.type === 'LONG' ? 'success' : 'error'}>{row.type}</Text>,
+              className: 'p-3',
+            },
+            {
+              header: 'ENTRY',
+              cell: (row) => <Text variant="code">{row.entry}</Text>,
+              className: 'p-3',
+            },
+            {
+              header: 'EXIT',
+              cell: (row) => <Text variant="code">{row.exit}</Text>,
+              className: 'p-3',
+            },
             {
               header: 'P&L',
-              cell: (row) => <span class="text-right text-[#008800] font-bold">{row.pnl}</span>,
+              cell: (row) => <Text variant="success" class="text-right block">{row.pnl}</Text>,
               align: 'right',
               className: 'p-3 text-right',
             },

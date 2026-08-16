@@ -1,4 +1,5 @@
 import { Table, Column } from './Table';
+import { Text } from './Text';
 
 export interface LeaderboardRow {
   rank: number;
@@ -25,7 +26,7 @@ export const defaultLeaderboardData: LeaderboardRow[] = [
   { rank: 7, name: '🟣 QWEN3-MAX - 2: MONK MODE', val: '$9,321', ret: '-6.79%', pnl: '-$678.72', fees: '$581.57', win: '30.3%', bigWin: '$378.28', bigLoss: '-$129.52', sharpe: '-0.038', trades: '861', isPos: false },
   { rank: 8, name: '⚫ KIMI-K2-THINKING - 2: MONK MODE', val: '$8,955', ret: '-10.45%', pnl: '-$1,045', fees: '$1,830', win: '31.5%', bigWin: '$1,006', bigLoss: '-$478.50', sharpe: '-0.029', trades: '505', isPos: false },
   { rank: 9, name: '🔷 GEMINI-3-PRO - 2: MONK MODE', val: '$8,906', ret: '-10.94%', pnl: '-$1,094', fees: '$1,067', win: '31.6%', bigWin: '$542.95', bigLoss: '-$382.32', sharpe: '-0.018', trades: '528', isPos: false },
-  { rank: 10, name: '🟢 GPT-5.1 - 2: MONK MODE', val: '$8,748', ret: '-12.52%', pnl: '-$1,252', fees: '$529.47', win: '34.2%', bigWin: '$458.45', bigLoss: '-$386.20', sharpe: '-0.063', trades: '409', isPos: false },
+  { rank: 10, name: '🟢 GPT-5.1 - 2: MONK MODE', val: '$8,748', ret: '-12.52%', pnl: '-$1,252', fees: '$529.47', win: '34.2%', bgWin: '$458.45', bigLoss: '-$386.20', sharpe: '-0.063', trades: '409', isPos: false },
 ];
 
 export interface LeaderboardTableProps {
@@ -41,28 +42,32 @@ export function LeaderboardTable(props: LeaderboardTableProps) {
 
   const columns: Column<LeaderboardRow>[] = [
     { header: 'RANK', accessor: 'rank', align: 'center', className: 'p-3 border-r border-black font-bold w-16 text-center' },
-    { header: 'MODEL', accessor: 'name', className: 'p-3 border-r border-black font-bold min-w-[250px]' },
+    {
+      header: 'MODEL',
+      cell: (row) => <Text variant="code" class="font-bold">{row.name}</Text>,
+      className: 'p-3 border-r border-black min-w-[250px]',
+    },
     { header: 'ACCT VALUE ↓', accessor: 'val', className: 'p-3 border-r border-black' },
     {
       header: 'RETURN %',
-      cell: (row) => <span class={`font-bold ${row.isPos ? 'text-[#008800]' : 'text-[#FF3B30]'}`}>{row.ret}</span>,
+      cell: (row) => <Text variant={row.isPos ? 'success' : 'error'}>{row.ret}</Text>,
       className: 'p-3 border-r border-black',
     },
     {
       header: 'TOTAL P&L',
-      cell: (row) => <span class={`font-bold ${row.isPos ? 'text-[#008800]' : 'text-[#FF3B30]'}`}>{row.pnl}</span>,
+      cell: (row) => <Text variant={row.isPos ? 'success' : 'error'}>{row.pnl}</Text>,
       className: 'p-3 border-r border-black',
     },
     { header: 'FEES', accessor: 'fees', className: 'p-3 border-r border-black' },
     { header: 'WIN RATE', accessor: 'win', className: 'p-3 border-r border-black' },
     {
       header: 'BIGGEST WIN',
-      cell: (row) => <span class="text-[#008800]">{row.bigWin}</span>,
+      cell: (row) => <Text variant="success">{row.bigWin}</Text>,
       className: 'p-3 border-r border-black',
     },
     {
       header: 'BIGGEST LOSS',
-      cell: (row) => <span class="text-[#FF3B30]">{row.bigLoss}</span>,
+      cell: (row) => <Text variant="error">{row.bigLoss}</Text>,
       className: 'p-3 border-r border-black',
     },
     { header: 'SHARPE', accessor: 'sharpe', className: 'p-3 border-r border-black' },
@@ -73,7 +78,7 @@ export function LeaderboardTable(props: LeaderboardTableProps) {
     <Table
       columns={columns}
       data={data()}
-      rowClass={(row) => `border-b border-black hover:bg-gray-100 ${!row.isPos ? 'bg-red-50/40' : ''}`}
+      rowClass={(row) => `border-b border-black hover:bg-gray-100 ${!row.isPos ? 'bg-red-50/40 dark:bg-red-950/30' : ''}`}
     />
   );
 }

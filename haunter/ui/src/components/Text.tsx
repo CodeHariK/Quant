@@ -1,0 +1,72 @@
+import type { JSX, ComponentProps } from 'solid-js';
+
+export type TextVariant =
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'body'
+  | 'body-sm'
+  | 'label'
+  | 'code'
+  | 'muted'
+  | 'success'
+  | 'error'
+  | 'accent';
+
+export interface TextProps extends ComponentProps<'span'> {
+  variant?: TextVariant;
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'label';
+  class?: string;
+  children: JSX.Element;
+}
+
+export function Text(props: TextProps) {
+  const getVariantClasses = (variant?: TextVariant) => {
+    switch (variant) {
+      case 'h1':
+        return 'text-3xl md:text-4xl font-bold uppercase tracking-tight';
+      case 'h2':
+        return 'text-xl md:text-2xl font-bold uppercase tracking-wide';
+      case 'h3':
+        return 'text-lg font-bold uppercase';
+      case 'body':
+        return 'text-sm leading-relaxed font-mono';
+      case 'body-sm':
+        return 'text-xs  leading-relaxed font-mono';
+      case 'label':
+        return 'font-label-caps text-label-caps uppercase font-bold tracking-wider';
+      case 'code':
+        return 'font-mono text-xs ';
+      case 'muted':
+        return 'text-xs text-muted-gray dark:text-zinc-400 font-mono';
+      case 'success':
+        return 'text-xs font-mono font-bold text-terminal-green dark:text-[#4cba68]';
+      case 'error':
+        return 'text-xs font-mono font-bold text-critical-red dark:text-[#FF3B30]';
+      case 'accent':
+        return 'text-xs font-mono font-bold text-blue-600 dark:text-blue-400';
+      default:
+        return 'text-sm  dark:text-gray-200 font-mono';
+    }
+  };
+
+  const tag = props.as || (props.variant === 'h1' ? 'h1' : props.variant === 'h2' ? 'h2' : props.variant === 'h3' ? 'h3' : 'span');
+  const className = `${getVariantClasses(props.variant)} ${props.class || ''}`;
+
+  if (tag === 'h1') return <h1 {...props} class={className}>{props.children}</h1>;
+  if (tag === 'h2') return <h2 {...props} class={className}>{props.children}</h2>;
+  if (tag === 'h3') return <h3 {...props} class={className}>{props.children}</h3>;
+  if (tag === 'h4') return <h4 {...props} class={className}>{props.children}</h4>;
+  if (tag === 'p') return <p {...props} class={className}>{props.children}</p>;
+  if (tag === 'div') return <div {...props} class={className}>{props.children}</div>;
+  if (tag === 'label') return <label {...props} class={className}>{props.children}</label>;
+
+  return (
+    <span
+      {...props}
+      class={className}
+    >
+      {props.children}
+    </span>
+  );
+}
