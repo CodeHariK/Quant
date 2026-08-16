@@ -2,6 +2,9 @@ import { Title } from '@solidjs/meta';
 import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
+import { Card } from '../components/Card';
+import { Modal } from '../components/Modal';
+import { Chip, ChipColor } from '../components/Chip';
 import { Table } from '../components/Table';
 import { Input, FilledButton, OutlineButton } from '../components/FormControls';
 import { FinancialStatementViewer } from '../components/FinancialStatementViewer';
@@ -94,9 +97,41 @@ export default function Ticker() {
 
   const stockInfo = () => fullReport()?.rawInfo || (fullReport() as any)?.info;
 
+  const [activeModal, setActiveModal] = createSignal<'sharpe' | 'sortino' | 'volatility' | 'drawdown' | null>(null);
+
+  const getSharpeGrade = (val: number): { grade: string; color: ChipColor } => {
+    if (val >= 3.0) return { grade: 'EXCELLENT', color: 'accent' };
+    if (val >= 2.0) return { grade: 'VERY GOOD', color: 'accent' };
+    if (val >= 1.0) return { grade: 'GOOD', color: 'success' };
+    if (val >= 0.0) return { grade: 'ACCEPTABLE', color: 'info' };
+    return { grade: 'POOR / SUB-PAR', color: 'error' };
+  };
+
+  const getSortinoGrade = (val: number): { grade: string; color: ChipColor } => {
+    if (val >= 3.0) return { grade: 'EXCELLENT', color: 'accent' };
+    if (val >= 2.0) return { grade: 'VERY GOOD', color: 'accent' };
+    if (val >= 1.0) return { grade: 'GOOD', color: 'success' };
+    if (val >= 0.0) return { grade: 'ACCEPTABLE', color: 'info' };
+    return { grade: 'HIGH DOWNSIDE', color: 'error' };
+  };
+
+  const getVolGrade = (val: number): { grade: string; color: ChipColor } => {
+    if (val <= 20) return { grade: 'LOW RISK', color: 'accent' };
+    if (val <= 35) return { grade: 'MODERATE', color: 'info' };
+    if (val <= 50) return { grade: 'HIGH VOLATILITY', color: 'warning' };
+    return { grade: 'EXTREME RISK', color: 'error' };
+  };
+
+  const getDrawdownGrade = (val: number): { grade: string; color: ChipColor } => {
+    if (val <= 20) return { grade: 'SAFE (-20%)', color: 'accent' };
+    if (val <= 35) return { grade: 'MODERATE (-35%)', color: 'info' };
+    if (val <= 50) return { grade: 'HIGH (-50%)', color: 'warning' };
+    return { grade: 'SEVERE (-50%+)', color: 'error' };
+  };
+
   return (
-    <PageLayout showSidebar={false}>
-      <Title>Ticker Valuation Details - ALPHA ARENA</Title>
+    <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full">
+      <Title>{`${selectedSymbol()} - Stock Report & Financial Statement Analysis`}</Title>
 
       {/* Watchlist Management & Asset Selector Bar */}
       <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -166,6 +201,185 @@ export default function Ticker() {
           </div>
         </div>
       </header>
+
+      {/* Quant Risk & Volatility Metrics Header Grid with Colored Grade Badges & Formula Info Modals */}
+      {fullReport() && (
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* Sharpe Ratio Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">SHARPE RATIO (5Y)</Text>
+                <button
+                  onClick={() => setActiveModal('sharpe')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text
+                variant={(fullReport()?.sharpeRatio ?? 0) >= 1 ? 'success' : (fullReport()?.sharpeRatio ?? 0) >= 0 ? 'accent' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(fullReport()?.sharpeRatio ?? 0).toFixed(2)}
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">Rf: 7.0% RBI</Text>
+              <Chip
+                label={`GRADE: ${getSharpeGrade(fullReport()?.sharpeRatio ?? 0).grade}`}
+                color={getSharpeGrade(fullReport()?.sharpeRatio ?? 0).color}
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+
+          {/* Sortino Ratio Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">SORTINO RATIO (5Y)</Text>
+                <button
+                  onClick={() => setActiveModal('sortino')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text
+                variant={(fullReport()?.sortinoRatio ?? 0) >= 1.5 ? 'success' : (fullReport()?.sortinoRatio ?? 0) >= 0 ? 'accent' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(fullReport()?.sortinoRatio ?? 0).toFixed(2)}
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">Downside Vol Only</Text>
+              <Chip
+                label={`GRADE: ${getSortinoGrade(fullReport()?.sortinoRatio ?? 0).grade}`}
+                color={getSortinoGrade(fullReport()?.sortinoRatio ?? 0).color}
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+
+          {/* Annual Volatility Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">ANNUAL VOLATILITY</Text>
+                <button
+                  onClick={() => setActiveModal('volatility')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text variant="code" class="text-2xl font-bold block">
+                {(fullReport()?.annualizedVolatility ?? 0).toFixed(2)}%
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">252 Days Std Dev</Text>
+              <Chip
+                label={getVolGrade(fullReport()?.annualizedVolatility ?? 0).grade}
+                color={getVolGrade(fullReport()?.annualizedVolatility ?? 0).color}
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+
+          {/* Max 5Y Drawdown Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">MAX 5Y DRAWDOWN</Text>
+                <button
+                  onClick={() => setActiveModal('drawdown')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text variant="error" class="text-2xl font-bold block">
+                -{(fullReport()?.maxDrawdown ?? 0).toFixed(2)}%
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">Peak to Trough</Text>
+              <Chip
+                label={getDrawdownGrade(fullReport()?.maxDrawdown ?? 0).grade}
+                color={getDrawdownGrade(fullReport()?.maxDrawdown ?? 0).color}
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Formula Explanation Modals */}
+      <Modal
+        isOpen={activeModal() === 'sharpe'}
+        onClose={() => setActiveModal(null)}
+        title="Sharpe Ratio (Risk-Adjusted Return)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Sharpe Ratio = (Rp - Rf) / σp
+        </p>
+        <div class="space-y-2 text-xs">
+          <p><strong>Rp:</strong> Annualized return of the stock computed over 5 years of daily price closes.</p>
+          <p><strong>Rf:</strong> Risk-free rate of return (assumed at 7.0% based on standard RBI 10Y Indian Govt Bonds / US Treasury yields).</p>
+          <p><strong>σp:</strong> Annualized standard deviation (volatility) of total daily returns (scaled across 252 trading days).</p>
+        </div>
+        <div class="border-t border-gray-200 pt-2 text-[11px] text-gray-600 dark:text-gray-300">
+          <strong>Grade Scale:</strong> &ge;3.0 (Excellent) | &ge;2.0 (Very Good) | &ge;1.0 (Good) | &ge;0 (Acceptable) | &lt;0 (Poor).
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal() === 'sortino'}
+        onClose={() => setActiveModal(null)}
+        title="Sortino Ratio (Downside Risk-Adjusted)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Sortino Ratio = (Rp - Rf) / σd
+        </p>
+        <div class="space-y-2 text-xs">
+          <p><strong>Rp:</strong> Annualized return of the stock over 5 years.</p>
+          <p><strong>Rf:</strong> Risk-free rate of return (7.0%).</p>
+          <p><strong>σd:</strong> Downside volatility. Unlike Sharpe ratio which penalizes both upside and downside price swings, Sortino only calculates volatility for negative daily returns below the risk-free rate.</p>
+        </div>
+        <div class="border-t border-gray-200 pt-2 text-[11px] text-gray-600 dark:text-gray-300">
+          A high Sortino ratio relative to Sharpe indicates that most of the stock's volatility comes from positive upside growth rallies!
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal() === 'volatility'}
+        onClose={() => setActiveModal(null)}
+        title="Annualized Volatility (%)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Annualized Volatility = Standard Deviation(Daily Returns) × √252
+        </p>
+        <div class="space-y-2 text-xs">
+          <p>Measures the dispersion of price returns around their mean over a 252-day trading year.</p>
+          <p>Higher volatility means larger price swings, requiring wider risk management and position sizing.</p>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal() === 'drawdown'}
+        onClose={() => setActiveModal(null)}
+        title="Maximum 5-Year Drawdown (%)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Max Drawdown = (Peak Value - Trough Value) / Peak Value
+        </p>
+        <div class="space-y-2 text-xs">
+          <p>Measures the worst historical loss an investor would have suffered buying at the 5-year peak before price bottomed out.</p>
+        </div>
+      </Modal>
 
       {/* Categorized & Grouped Financial Statistics */}
       {stockInfo() && (() => {

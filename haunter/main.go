@@ -48,7 +48,7 @@ func main() {
 
 		symbol := r.URL.Query().Get("symbol")
 		if symbol == "" {
-			symbol = "RELIANCE.NS"
+			symbol = "^NSEMDCP50"
 		}
 
 		force := r.URL.Query().Get("force") == "true"
@@ -367,7 +367,7 @@ func main() {
 }
 
 func runBackgroundSimulation(hub *api.SSEHub) {
-	symbols := []string{"TSLA", "NDX", "NVDA", "MSFT", "AMZN", "GOOGL", "PLTR"}
+	symbols := []string{"^NSEMDCP50", "USDINR=X", "SMH", "CL=F"}
 	_ = symbols
 	_ = rand.Intn
 }

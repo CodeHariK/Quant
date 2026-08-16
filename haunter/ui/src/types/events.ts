@@ -17,6 +17,10 @@ export interface HistoryBar {
 export interface FullValuationReport {
   symbol: string;
   fetchedAt: string;
+  sharpeRatio?: number;
+  sortinoRatio?: number;
+  annualizedVolatility?: number;
+  maxDrawdown?: number;
   rawInfo: Record<string, any>;
   history: HistoryBar[];
   cashFlow: FinancialStatementItem[];

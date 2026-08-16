@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"haunter/types"
+
+	"github.com/boltdb/bolt"
 )
 
 const (
@@ -76,7 +77,7 @@ func InitStore() (*Store, error) {
 	globalStore = &Store{db: db}
 
 	// Seed default watchlist if empty
-	defaultWatchlist := []string{"RELIANCE.NS", "TATAMOTORS.NS", "INFY.NS", "TCS.NS", "AAPL", "MSFT", "NVDA"}
+	defaultWatchlist := []string{"^NSEMDCP50", "USDINR=X", "SMH", "CL=F"}
 	current, _ := globalStore.GetWatchlist()
 	if len(current) == 0 {
 		_ = globalStore.SaveWatchlist(defaultWatchlist)

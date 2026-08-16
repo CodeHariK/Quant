@@ -46,13 +46,17 @@ type FinancialStatementItem struct {
 // 4. IncomeStatement: Complete annual line items map
 // 5. BalanceSheet: Complete annual line items map
 type FullValuationReport struct {
-	Symbol          string                   `json:"symbol"`
-	FetchedAt       time.Time                `json:"fetchedAt"`
-	RawInfo         *models.Info             `json:"rawInfo"`
-	History         []HistoryBar             `json:"history"`
-	CashFlow        []FinancialStatementItem `json:"cashFlow"`
-	IncomeStatement []FinancialStatementItem `json:"incomeStatement"`
-	BalanceSheet    []FinancialStatementItem `json:"balanceSheet"`
+	Symbol               string                   `json:"symbol"`
+	FetchedAt            time.Time                `json:"fetchedAt"`
+	SharpeRatio          float64                  `json:"sharpeRatio"`
+	SortinoRatio         float64                  `json:"sortinoRatio"`
+	AnnualizedVolatility float64                  `json:"annualizedVolatility"`
+	MaxDrawdown          float64                  `json:"maxDrawdown"`
+	RawInfo              *models.Info             `json:"rawInfo"`
+	History              []HistoryBar             `json:"history"`
+	CashFlow             []FinancialStatementItem `json:"cashFlow"`
+	IncomeStatement      []FinancialStatementItem `json:"incomeStatement"`
+	BalanceSheet         []FinancialStatementItem `json:"balanceSheet"`
 }
 
 type HistoryBar struct {

@@ -3,6 +3,7 @@ package fetcher
 import (
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/wnjoon/go-yfinance/pkg/models"
@@ -98,14 +99,105 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		bsItems = extractStatement(bs)
 	}
 
+	// Helper to calculate Sharpe Ratio, Sortino Ratio, Annualized Volatility, and Max Drawdown
+	computeRiskMetrics := func(bars []types.HistoryBar) (sharpe float64, sortino float64, vol float64, maxDD float64) {
+		if len(bars) < 2 {
+			return 0, 0, 0, 0
+		}
+
+		// Calculate daily returns
+		returns := make([]float64, 0, len(bars)-1)
+		peak := bars[0].Close
+		maxDrawdownVal := 0.0
+
+		for i := 0; i < len(bars); i++ {
+			if bars[i].Close > peak {
+				peak = bars[i].Close
+			}
+			if peak > 0 {
+				dd := (peak - bars[i].Close) / peak
+				if dd > maxDrawdownVal {
+					maxDrawdownVal = dd
+				}
+			}
+
+			if i > 0 && bars[i-1].Close > 0 {
+				r := (bars[i].Close - bars[i-1].Close) / bars[i-1].Close
+				returns = append(returns, r)
+			}
+		}
+
+		if len(returns) == 0 {
+			return 0, 0, 0, maxDrawdownVal
+		}
+
+		// Calculate Mean Daily Return
+		sumReturn := 0.0
+		for _, r := range returns {
+			sumReturn += r
+		}
+		meanReturn := sumReturn / float64(len(returns))
+
+		// Calculate Total Variance & Downside Variance
+		sumSquareDiff := 0.0
+		sumDownsideSquareDiff := 0.0
+		downsideCount := 0
+
+		// Risk-free rate assumptions (7% annual risk-free rate = ~0.000277 daily)
+		const annualRiskFreeRate = 0.07
+		dailyRiskFreeRate := annualRiskFreeRate / 252.0
+
+		for _, r := range returns {
+			diff := r - meanReturn
+			sumSquareDiff += diff * diff
+
+			if r < dailyRiskFreeRate {
+				dDiff := r - dailyRiskFreeRate
+				sumDownsideSquareDiff += dDiff * dDiff
+				downsideCount++
+			}
+		}
+
+		dailyVariance := sumSquareDiff / float64(len(returns))
+		dailyVolatility := math.Sqrt(dailyVariance)
+
+		// Annualized Return & Annualized Volatility (252 trading days)
+		annualizedReturn := meanReturn * 252.0
+		annualizedVol := dailyVolatility * math.Sqrt(252.0)
+
+		// Annualized Downside Volatility
+		downsideVolatility := 0.0
+		if len(returns) > 0 && sumDownsideSquareDiff > 0 {
+			downsideVolatility = math.Sqrt(sumDownsideSquareDiff/float64(len(returns))) * math.Sqrt(252.0)
+		}
+
+		// Sharpe Ratio = (Annualized Return - Risk Free Rate) / Annualized Volatility
+		if annualizedVol > 0 {
+			sharpe = (annualizedReturn - annualRiskFreeRate) / annualizedVol
+		}
+
+		// Sortino Ratio = (Annualized Return - Risk Free Rate) / Downside Volatility
+		if downsideVolatility > 0 {
+			sortino = (annualizedReturn - annualRiskFreeRate) / downsideVolatility
+		}
+
+		return sharpe, sortino, annualizedVol * 100.0, maxDrawdownVal * 100.0
+	}
+
+	sharpeVal, sortinoVal, volVal, maxDDVal := computeRiskMetrics(historyBars)
+
 	report := &types.FullValuationReport{
-		Symbol:          symbol,
-		FetchedAt:       time.Now(),
-		RawInfo:         rawInfo,
-		History:         historyBars,
-		CashFlow:        cfItems,
-		IncomeStatement: isItems,
-		BalanceSheet:    bsItems,
+		Symbol:               symbol,
+		FetchedAt:            time.Now(),
+		SharpeRatio:          sharpeVal,
+		SortinoRatio:         sortinoVal,
+		AnnualizedVolatility: volVal,
+		MaxDrawdown:          maxDDVal,
+		RawInfo:              rawInfo,
+		History:              historyBars,
+		CashFlow:             cfItems,
+		IncomeStatement:      isItems,
+		BalanceSheet:         bsItems,
 	}
 
 	// Save complete 5-year report to BoltDB
@@ -113,7 +205,8 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		if err := st.SaveValuationReport(report); err != nil {
 			log.Printf("⚠️ Failed to save report for [%s] to BoltDB: %v\n", symbol, err)
 		} else {
-			log.Printf("💾 [CACHE_STORED] Saved Complete 5-Year Valuation Report for [%s] to BoltDB (History bars: %d)\n", symbol, len(historyBars))
+			log.Printf("💾 [CACHE_STORED] Saved Complete 5-Year Valuation Report for [%s] (Sharpe: %.2f, Volatility: %.2f%%)\n",
+				symbol, sharpeVal, volVal)
 		}
 	}
 
