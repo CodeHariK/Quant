@@ -200,45 +200,45 @@ export default function Ticker() {
         <div class="border-2 border-black bg-white p-6 mb-8 relative">
           <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-3">
             <div>
-              <Text variant="h2" class="text-lg">🎯 INTRINSIC VALUE & BUY/SELL ZONE RADAR</Text>
-              <Text variant="muted" class="block text-xs mt-1">1-Year Recency-Weighted Monthly Mean & Margin of Safety Evaluation</Text>
+              <Text variant="h2" class="text-lg">🎯 QUANTITATIVE TREND & PRICE DEVIATION RADAR</Text>
+              <Text variant="muted" class="block text-xs mt-1">1-Year Recency-Weighted Trend Price Baseline & Trend Deviation Radar</Text>
             </div>
             <button
               onClick={() => setActiveModal('dcf')}
               class="text-xs font-mono font-bold border border-black px-3 py-1 bg-gray-100 hover:bg-black hover:text-white transition-colors"
             >
-              ℹ️ HOW FAIR VALUE IS CALCULATED
+              ℹ️ HOW TREND BASELINE IS CALCULATED
             </button>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
             {/* Valuation Status Badge */}
             <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900 text-center">
-              <Text variant="label" class="block mb-1">VALUATION STATUS</Text>
+              <Text variant="label" class="block mb-1">TREND STATUS</Text>
               <Chip
                 label={fullReport()?.valuationStatus?.replace('_', ' ') || 'EVALUATING'}
                 color={
-                  (fullReport()?.marginOfSafety ?? 0) >= 10
+                  (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 10
                     ? 'success'
-                    : (fullReport()?.marginOfSafety ?? 0) <= -10
+                    : (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) <= -10
                     ? 'error'
                     : 'info'
                 }
                 class="text-sm py-1 px-3 font-bold"
               />
               <Text variant="muted" class="block mt-2 text-[10px]">
-                {(fullReport()?.marginOfSafety ?? 0) >= 0
-                  ? `${(fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Discount to Fair Value`
-                  : `${Math.abs(fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Overvalued Premium`}
+                {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0
+                  ? `${(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Below Trend Baseline`
+                  : `${Math.abs(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Above Trend Baseline`}
               </Text>
             </div>
 
             {/* Fair Value vs Market Price */}
             <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
-              <Text variant="label" class="block mb-1">FAIR VALUE TARGET (1Y MEAN)</Text>
+              <Text variant="label" class="block mb-1">WEIGHTED TREND BASELINE</Text>
               <Text variant="h1" class="text-2xl text-terminal-green font-bold block">
                 {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
-                {(fullReport()?.intrinsicValue ?? 0).toFixed(2)}
+                {(fullReport()?.weightedTrendPrice ?? fullReport()?.intrinsicValue ?? 0).toFixed(2)}
               </Text>
               <Text variant="muted" class="block mt-1 text-[11px]">
                 Current Price: <span class="font-bold text-black dark:text-white">
@@ -265,30 +265,81 @@ export default function Ticker() {
               </Text>
             </div>
 
-            {/* Margin of Safety */}
+            {/* Price to Trend Deviation */}
             <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
-              <Text variant="label" class="block mb-1">MARGIN OF SAFETY</Text>
+              <Text variant="label" class="block mb-1">TREND DEVIATION</Text>
               <Text
-                variant={(fullReport()?.marginOfSafety ?? 0) >= 15 ? 'success' : (fullReport()?.marginOfSafety ?? 0) >= 0 ? 'accent' : 'error'}
+                variant={(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 5 ? 'success' : (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0 ? 'accent' : 'error'}
                 class="text-2xl font-bold block"
               >
-                {(fullReport()?.marginOfSafety ?? 0) >= 0 ? '+' : ''}
-                {(fullReport()?.marginOfSafety ?? 0).toFixed(1)}%
+                {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0 ? '+' : ''}
+                {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}%
               </Text>
-              <Text variant="muted" class="block mt-1 text-[11px]">Target Margin: &gt; 15.0%</Text>
+              <Text variant="muted" class="block mt-1 text-[11px]">Baseline Band: ±10.0%</Text>
             </div>
 
             {/* Recommendation Decision */}
             <div class="border border-black p-4 bg-black text-white text-center">
-              <Text variant="label" class="block mb-1 text-gray-300">RECOMMENDATION</Text>
+              <Text variant="label" class="block mb-1 text-gray-300">SIGNAL</Text>
               <Text variant="h1" class="text-xl text-[#00FF41] font-bold block tracking-wider">
                 {fullReport()?.buySellZone?.replace('_', ' ') || 'HOLD'}
               </Text>
-              <span class="text-[10px] uppercase font-mono text-gray-400 block mt-1">Value Investor Signal</span>
+              <span class="text-[10px] uppercase font-mono text-gray-400 block mt-1">Quant Momentum Signal</span>
             </div>
           </div>
         </div>
       )}
+
+      {/* Wall Street Analyst Consensus Recommendations Banner */}
+      {fullReport()?.recommendations && (() => {
+        const rec = fullReport()?.recommendations as any;
+        const trend = Array.isArray(rec?.trend) && rec.trend.length > 0 ? rec.trend[0] : (rec?.trend ?? rec);
+        return (
+          <div class="border border-black bg-white p-4 mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3 border-b border-gray-200 pb-2">
+              <Text variant="label" class="font-bold text-xs">🏛️ WALL STREET ANALYST CONSENSUS RATINGS (CURRENT MONTH)</Text>
+              <span class="text-[10px] font-mono text-gray-500">Source: Yahoo Finance Analyst Consensus</span>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div class="border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center">
+                <Text variant="label" class="text-[10px] text-emerald-800 dark:text-emerald-300 block mb-1">STRONG BUY</Text>
+                <Text variant="h1" class="text-xl text-emerald-600 font-bold">
+                  {trend?.strongBuy ?? trend?.StrongBuy ?? 0}
+                </Text>
+              </div>
+
+              <div class="border border-green-300 bg-green-50 dark:bg-green-950/20 p-3 text-center">
+                <Text variant="label" class="text-[10px] text-green-800 dark:text-green-300 block mb-1">BUY</Text>
+                <Text variant="h1" class="text-xl text-green-600 font-bold">
+                  {trend?.buy ?? trend?.Buy ?? 0}
+                </Text>
+              </div>
+
+              <div class="border border-blue-300 bg-blue-50 dark:bg-blue-950/20 p-3 text-center">
+                <Text variant="label" class="text-[10px] text-blue-800 dark:text-blue-300 block mb-1">HOLD</Text>
+                <Text variant="h1" class="text-xl text-blue-600 font-bold">
+                  {trend?.hold ?? trend?.Hold ?? 0}
+                </Text>
+              </div>
+
+              <div class="border border-orange-300 bg-orange-50 dark:bg-orange-950/20 p-3 text-center">
+                <Text variant="label" class="text-[10px] text-orange-800 dark:text-orange-300 block mb-1">SELL</Text>
+                <Text variant="h1" class="text-xl text-orange-600 font-bold">
+                  {trend?.sell ?? trend?.Sell ?? 0}
+                </Text>
+              </div>
+
+              <div class="border border-red-300 bg-red-50 dark:bg-red-950/20 p-3 text-center">
+                <Text variant="label" class="text-[10px] text-red-800 dark:text-red-300 block mb-1">STRONG SELL</Text>
+                <Text variant="h1" class="text-xl text-red-600 font-bold">
+                  {trend?.strongSell ?? trend?.StrongSell ?? 0}
+                </Text>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Quant Risk & Volatility Metrics Header Grid with Colored Grade Badges & Formula Info Modals */}
       {fullReport() && (
@@ -338,7 +389,9 @@ export default function Ticker() {
                 variant={(fullReport()?.sortinoRatio ?? 0) >= 1.5 ? 'success' : (fullReport()?.sortinoRatio ?? 0) >= 0 ? 'accent' : 'error'}
                 class="text-2xl font-bold block"
               >
-                {(fullReport()?.sortinoRatio ?? 0).toFixed(2)}
+                {!isFinite(fullReport()?.sortinoRatio ?? 0)
+                  ? '∞ (PERFECT)'
+                  : (fullReport()?.sortinoRatio ?? 0).toFixed(2)}
               </Text>
             </div>
             <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
@@ -404,6 +457,123 @@ export default function Ticker() {
           </Card>
         </div>
       )}
+
+      {/* Valuation Ratios Grid: PEG Ratio & Earnings Yield */}
+      {fullReport() && (
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {/* PEG Ratio Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">PEG RATIO (P/E to Growth)</Text>
+                <button
+                  onClick={() => setActiveModal('peg')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text
+                variant={(fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0 ? 'success' : (fullReport()?.pegRatio ?? 0) <= 2.0 ? 'accent' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(fullReport()?.pegRatio ?? 0) > 0 ? (fullReport()?.pegRatio ?? 0).toFixed(2) : 'N/A'}
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">Bench: &lt;1.0 Cheap | &gt;2.0 Expensive</Text>
+              <Chip
+                label={
+                  (fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0
+                    ? 'CHEAP (< 1.0)'
+                    : (fullReport()?.pegRatio ?? 0) <= 2.0 && (fullReport()?.pegRatio ?? 0) > 0
+                    ? 'FAIR (1.0 - 2.0)'
+                    : 'EXPENSIVE (> 2.0)'
+                }
+                color={
+                  (fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0
+                    ? 'success'
+                    : (fullReport()?.pegRatio ?? 0) <= 2.0 && (fullReport()?.pegRatio ?? 0) > 0
+                    ? 'info'
+                    : 'error'
+                }
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+
+          {/* Earnings Yield Card */}
+          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">EARNINGS YIELD %</Text>
+                <button
+                  onClick={() => setActiveModal('earningsYield')}
+                  class="text-[11px] font-mono text-gray-500 hover:text-black dark:hover:text-white underline cursor-pointer"
+                >
+                  ℹ️ FORMULA
+                </button>
+              </div>
+              <Text
+                variant={(fullReport()?.earningsYield ?? 0) >= 7.0 ? 'success' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(fullReport()?.earningsYield ?? 0).toFixed(2)}%
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+              <Text variant="muted" class="text-[10px]">Risk-Free Benchmark: 7.0% RBI Rate</Text>
+              <Chip
+                label={
+                  (fullReport()?.earningsYield ?? 0) >= 7.0
+                    ? 'BEATS RISK-FREE (>= 7%)'
+                    : 'BELOW RISK-FREE (< 7%)'
+                }
+                color={(fullReport()?.earningsYield ?? 0) >= 7.0 ? 'success' : 'error'}
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Formula Explanation Modals */}
+      <Modal
+        isOpen={activeModal() === 'peg'}
+        onClose={() => setActiveModal(null)}
+        title="PEG Ratio (Price/Earnings-to-Growth)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          PEG Ratio = Trailing P/E / Annual Earnings Growth Rate (%)
+        </p>
+        <div class="space-y-2 text-xs">
+          <p><strong>Overview:</strong> The PEG ratio adjusts the standard Price-to-Earnings ratio by taking the company's expected earnings growth rate into account.</p>
+          <p><strong>Interpretation Guide:</strong></p>
+          <ul class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+            <li><strong>PEG &lt; 1.0 (CHEAP):</strong> The stock is trading at a discount relative to its annual earnings growth rate. High growth at a bargain valuation.</li>
+            <li><strong>1.0 &le; PEG &le; 2.0 (FAIR):</strong> Fairly valued relative to earnings growth.</li>
+            <li><strong>PEG &gt; 2.0 (EXPENSIVE):</strong> You are paying a heavy valuation premium for limited earnings growth.</li>
+          </ul>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal() === 'earningsYield'}
+        onClose={() => setActiveModal(null)}
+        title="Earnings Yield (Equity Yield vs Risk-Free Rate)"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Earnings Yield (%) = (Earnings Per Share / Current Stock Price) &times; 100
+        </p>
+        <div class="space-y-2 text-xs">
+          <p><strong>Overview:</strong> Earnings Yield is the reciprocal of the Price-to-Earnings ratio (1 / PE). It measures the percentage of net profit the company generates per dollar invested in the stock.</p>
+          <p><strong>Risk-Free Hurdle Rate Comparison:</strong> Evaluated against the <strong>7.0% RBI Risk-Free Benchmark Rate</strong>.</p>
+          <ul class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+            <li><strong>Yield &ge; 7.0% (BEATS RISK-FREE):</strong> The equity investment yields more return than guaranteed risk-free government bonds.</li>
+            <li><strong>Yield &lt; 7.0% (BELOW RISK-FREE):</strong> The stock yields less than risk-free treasury bonds. The stock is mathematically overvalued unless earnings grow rapidly.</li>
+          </ul>
+        </div>
+      </Modal>
 
       {/* Formula Explanation Modals */}
       <Modal

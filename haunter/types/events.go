@@ -54,9 +54,11 @@ type FullValuationReport struct {
 	AnnualizedVolatility float64                  `json:"annualizedVolatility"`
 	MaxDrawdown          float64                  `json:"maxDrawdown"`
 	// Valuation & Buy/Sell Zone Engine Fields
-	IntrinsicValue       float64                  `json:"intrinsicValue"`       // 1Y Recency-Weighted Fair Value Target
+	WeightedTrendPrice   float64                  `json:"weightedTrendPrice"`   // 1Y Recency-Weighted Trend Price Baseline
+	IntrinsicValue       float64                  `json:"intrinsicValue"`       // JSON backward compatibility alias for WeightedTrendPrice
 	CurrentPrice         float64                  `json:"currentPrice"`         // Market Price
-	MarginOfSafety       float64                  `json:"marginOfSafety"`       // % Discount or Premium to Fair Value
+	PriceToTrendDeviation float64                 `json:"priceToTrendDeviation"` // % Deviation of Current Price from Weighted Trend Baseline
+	MarginOfSafety       float64                  `json:"marginOfSafety"`       // JSON backward compatibility alias for PriceToTrendDeviation
 	ValuationStatus      string                   `json:"valuationStatus"`      // DEEPLY_UNDERVALUED | UNDERVALUED | FAIRLY_VALUED | OVERVALUED | DEEPLY_OVERVALUED
 	BuySellZone          string                   `json:"buySellZone"`          // STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL
 	RelativePE           float64                  `json:"relativePE"`           // Trailing P/E
@@ -66,7 +68,10 @@ type FullValuationReport struct {
 	NextMonthMax         float64                  `json:"nextMonthMax"`         // Expected Upper Monthly Range
 	MonthlyVolPerc       float64                  `json:"monthlyVolPerc"`       // Average Monthly Volatility Percentage Spread
 	MonthlyGrowthPerc    float64                  `json:"monthlyGrowthPerc"`    // Average Month-over-Month Growth Rate %
-	RawInfo              *models.Info             `json:"rawInfo"`
+	PEGRatio             float64                      `json:"pegRatio"`             // Price/Earnings-to-Growth Ratio (PE / EarningsGrowth%)
+	EarningsYield        float64                      `json:"earningsYield"`        // Earnings Yield % ( (EPS / CurrentPrice) * 100 )
+	Recommendations      *models.RecommendationTrend `json:"recommendations"`      // Wall Street Analyst Consensus Ratings
+	RawInfo              *models.Info                 `json:"rawInfo"`
 	History              []HistoryBar             `json:"history"`
 	CashFlow             []FinancialStatementItem `json:"cashFlow"`
 	IncomeStatement      []FinancialStatementItem `json:"incomeStatement"`

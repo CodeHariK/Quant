@@ -33,6 +33,9 @@ export interface FullValuationReport {
   nextMonthMax?: number;
   monthlyVolPerc?: number;
   monthlyGrowthPerc?: number;
+  pegRatio?: number;
+  earningsYield?: number;
+  recommendations?: Record<string, any>;
   rawInfo: Record<string, any>;
   history: HistoryBar[];
   cashFlow: FinancialStatementItem[];

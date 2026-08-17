@@ -3,12 +3,12 @@ package fetcher
 import (
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"github.com/wnjoon/go-yfinance/pkg/models"
 	"github.com/wnjoon/go-yfinance/pkg/multi"
 	"github.com/wnjoon/go-yfinance/pkg/ticker"
+	"haunter/analyzer"
 	"haunter/config"
 	"haunter/logger"
 	"haunter/store"
@@ -42,13 +42,19 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	defer t.Close()
 
 	// 1. Raw Info (Complete company profile, ratios, statistics)
-	rawInfo, _ := t.Info()
-	if rawInfo == nil {
-		rawInfo = &models.Info{Symbol: symbol, LongName: symbol}
+	rawInfo, err := t.Info()
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to fetch Info for %s: %v", symbol, err)
+		rawInfo = &models.Info{Symbol: symbol, LongName: symbol} // Safe fallback
 	}
 
 	// 2. History (5-Year Daily OHLCV Candles)
-	bars, _ := t.History(models.HistoryParams{Period: "5y", Interval: "1d"})
+	bars, err := t.History(models.HistoryParams{Period: "5y", Interval: "1d"})
+	if err != nil {
+		log.Printf("⚠️ Error: Failed to fetch 5Y History for %s: %v", symbol, err)
+		return nil, fmt.Errorf("failed to fetch 5Y daily history bars for %s: %w", symbol, err)
+	}
+
 	historyBars := make([]types.HistoryBar, 0, len(bars))
 	for _, b := range bars {
 		historyBars = append(historyBars, types.HistoryBar{
@@ -86,279 +92,79 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	cfItems := make([]types.FinancialStatementItem, 0)
 	if cf, err := t.CashFlow(string(models.FrequencyAnnual)); err == nil && cf != nil {
 		cfItems = extractStatement(cf)
+	} else if err != nil {
+		log.Printf("⚠️ Warning: Failed to fetch CashFlow for %s: %v", symbol, err)
 	}
 
 	// 4. IncomeStatement (All annual line items)
 	isItems := make([]types.FinancialStatementItem, 0)
 	if inc, err := t.IncomeStatement(string(models.FrequencyAnnual)); err == nil && inc != nil {
 		isItems = extractStatement(inc)
+	} else if err != nil {
+		log.Printf("⚠️ Warning: Failed to fetch IncomeStatement for %s: %v", symbol, err)
 	}
 
 	// 5. BalanceSheet (All annual line items)
 	bsItems := make([]types.FinancialStatementItem, 0)
 	if bs, err := t.BalanceSheet(string(models.FrequencyAnnual)); err == nil && bs != nil {
 		bsItems = extractStatement(bs)
+	} else if err != nil {
+		log.Printf("⚠️ Warning: Failed to fetch BalanceSheet for %s: %v", symbol, err)
 	}
 
-	// Helper to calculate Sharpe Ratio, Sortino Ratio, Annualized Volatility, and Max Drawdown
-	computeRiskMetrics := func(bars []types.HistoryBar) (sharpe float64, sortino float64, vol float64, maxDD float64) {
-		if len(bars) < 2 {
-			return 0, 0, 0, 0
-		}
-
-		// Calculate daily returns
-		returns := make([]float64, 0, len(bars)-1)
-		peak := bars[0].Close
-		maxDrawdownVal := 0.0
-
-		for i := 0; i < len(bars); i++ {
-			if bars[i].Close > peak {
-				peak = bars[i].Close
-			}
-			if peak > 0 {
-				dd := (peak - bars[i].Close) / peak
-				if dd > maxDrawdownVal {
-					maxDrawdownVal = dd
-				}
-			}
-
-			if i > 0 && bars[i-1].Close > 0 {
-				r := (bars[i].Close - bars[i-1].Close) / bars[i-1].Close
-				returns = append(returns, r)
-			}
-		}
-
-		if len(returns) == 0 {
-			return 0, 0, 0, maxDrawdownVal
-		}
-
-		// Calculate Mean Daily Return
-		sumReturn := 0.0
-		for _, r := range returns {
-			sumReturn += r
-		}
-		meanReturn := sumReturn / float64(len(returns))
-
-		// Calculate Total Variance & Downside Variance
-		sumSquareDiff := 0.0
-		sumDownsideSquareDiff := 0.0
-		downsideCount := 0
-
-		// Risk-free rate assumptions from config
-		annualRiskFreeRate := config.AnnualRiskFreeRate
-		dailyRiskFreeRate := annualRiskFreeRate / config.TradingDaysPerYear
-
-		for _, r := range returns {
-			diff := r - meanReturn
-			sumSquareDiff += diff * diff
-
-			if r < dailyRiskFreeRate {
-				dDiff := r - dailyRiskFreeRate
-				sumDownsideSquareDiff += dDiff * dDiff
-				downsideCount++
-			}
-		}
-
-		dailyVariance := sumSquareDiff / float64(len(returns))
-		dailyVolatility := math.Sqrt(dailyVariance)
-
-		// Annualized Return & Annualized Volatility (252 trading days)
-		annualizedReturn := meanReturn * config.TradingDaysPerYear
-		annualizedVol := dailyVolatility * math.Sqrt(config.TradingDaysPerYear)
-
-		// Annualized Downside Volatility
-		downsideVolatility := 0.0
-		if len(returns) > 0 && sumDownsideSquareDiff > 0 {
-			downsideVolatility = math.Sqrt(sumDownsideSquareDiff/float64(len(returns))) * math.Sqrt(config.TradingDaysPerYear)
-		}
-
-		// Sharpe Ratio = (Annualized Return - Risk Free Rate) / Annualized Volatility
-		if annualizedVol > 0 {
-			sharpe = (annualizedReturn - annualRiskFreeRate) / annualizedVol
-		}
-
-		// Sortino Ratio = (Annualized Return - Risk Free Rate) / Downside Volatility
-		if downsideVolatility > 0 {
-			sortino = (annualizedReturn - annualRiskFreeRate) / downsideVolatility
-		}
-
-		return sharpe, sortino, annualizedVol * 100.0, maxDrawdownVal * 100.0
+	// 6. Wall Street Recommendation Trends
+	recTrend, err := t.Recommendations()
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to fetch Recommendations for %s: %v", symbol, err)
+	} else if recTrend != nil {
+		log.Printf("🔍 Debug Recommendations for %s: %+v", symbol, recTrend)
 	}
 
-	sharpeVal, sortinoVal, volVal, maxDDVal := computeRiskMetrics(historyBars)
+	// Pure Package-Level Quant Calculations (Delegated to haunter/analyzer)
+	sharpeVal, sortinoVal, volVal, maxDDVal := analyzer.CalculateRiskMetrics(historyBars, config.AnnualRiskFreeRate)
 
-	// 1-Year Recency-Weighted Monthly Mean Valuation & Next Month Forecast Engine
-	computeValuation := func(info *models.Info, bars []types.HistoryBar) (float64, float64, float64, string, string, float64, float64, float64, float64, float64, float64, float64) {
-		currentPrice := 0.0
-		if info != nil {
-			currentPrice = info.CurrentPrice
-		}
-		if currentPrice == 0 && len(bars) > 0 {
-			currentPrice = bars[len(bars)-1].Close
-		}
-
-		peRatio := 0.0
-		sectorPE := 22.5
-		if info != nil {
-			peRatio = info.TrailingPE
-		}
-
-		// Group price bars by year-month (YYYY-MM) over the last 12 months (252 trading bars)
-		type MonthStats struct {
-			High float64
-			Low  float64
-		}
-
-		monthMap := make(map[string]*MonthStats)
-		monthKeys := make([]string, 0)
-
-		// Filter for the last ~252 trading bars (1 Year)
-		startIdx := 0
-		if len(bars) > 252 {
-			startIdx = len(bars) - 252
-		}
-
-		for i := startIdx; i < len(bars); i++ {
-			b := bars[i]
-			// Parse date timestamp string (e.g., 2026-08-15) to YYYY-MM
-			ym := b.Date
-			if len(b.Date) >= 7 {
-				ym = b.Date[:7]
-			}
-
-			if stats, exists := monthMap[ym]; exists {
-				if b.High > stats.High {
-					stats.High = b.High
-				}
-				if b.Low < stats.Low && b.Low > 0 {
-					stats.Low = b.Low
-				}
-			} else {
-				monthMap[ym] = &MonthStats{
-					High: b.High,
-					Low:  b.Low,
-				}
-				monthKeys = append(monthKeys, ym)
-			}
-		}
-
-		// Keep at most last 12 months
-		if len(monthKeys) > 12 {
-			monthKeys = monthKeys[len(monthKeys)-12:]
-		}
-
-		// Calculate:
-		// 1. Average Monthly Volatility Percentage Spread: mean( (High - Low) / MonthAvg )
-		// 2. Average Monthly Trend Growth Rate: mean( (MonthAvg[i] - MonthAvg[i-1]) / MonthAvg[i-1] )
-		weightedMeanSum := 0.0
-		totalWeight := 0.0
-		monthlyVolatilityPercSum := 0.0
-		monthlyTrendChangeSum := 0.0
-		trendCount := 0
-
-		monthlyMeans := make([]float64, 0, len(monthKeys))
-
-		for idx, ym := range monthKeys {
-			stats := monthMap[ym]
-			monthMean := (stats.High + stats.Low) / 2.0
-			monthlyMeans = append(monthlyMeans, monthMean)
-
-			weight := float64(idx + 1) // Linear recency weight
-			weightedMeanSum += monthMean * weight
-			totalWeight += weight
-
-			// Calculate percentage spread for this month: (High - Low) / MonthAvg
-			if monthMean > 0 {
-				mVolPerc := (stats.High - stats.Low) / monthMean
-				monthlyVolatilityPercSum += mVolPerc
-			}
-
-			// Calculate month-over-month percentage price trend change
-			if idx > 0 && monthlyMeans[idx-1] > 0 {
-				pctChange := (monthMean - monthlyMeans[idx-1]) / monthlyMeans[idx-1]
-				monthlyTrendChangeSum += pctChange
-				trendCount++
-			}
-		}
-
-		intrinsicValue := currentPrice
-		if totalWeight > 0 {
-			intrinsicValue = weightedMeanSum / totalWeight
-		}
-
-		// Average Volatility Percentage per month
-		avgMonthlyVolPerc := 0.10 // 10% default fallback
-		if len(monthKeys) > 0 {
-			avgMonthlyVolPerc = monthlyVolatilityPercSum / float64(len(monthKeys))
-		}
-
-		// Average Month-over-Month Trend Growth Rate %
-		avgMonthlyTrendGrowth := 0.0
-		if trendCount > 0 {
-			avgMonthlyTrendGrowth = monthlyTrendChangeSum / float64(trendCount)
-		}
-
-		// Project Next Month Forecast Target Price: Current Price * (1 + Average Monthly Trend Growth)
-		nextMonthForecast := currentPrice * (1.0 + avgMonthlyTrendGrowth)
-
-		// Expected Next Month Lower & Upper Range Bounds using the Mean Volatility Percentage Spread
-		halfBandPerc := avgMonthlyVolPerc / 2.0
-		nextMonthMin := nextMonthForecast * (1.0 - halfBandPerc)
-		nextMonthMax := nextMonthForecast * (1.0 + halfBandPerc)
-
-		// Calculate Margin of Safety (% Discount or Premium relative to 1Y Recency-Weighted Fair Value)
-		marginOfSafety := 0.0
-		if intrinsicValue > 0 {
-			marginOfSafety = ((intrinsicValue - currentPrice) / intrinsicValue) * 100.0
-		}
-
-		// Determine Valuation Status & Buy/Sell Zone
-		valStatus := "FAIRLY_VALUED"
-		buyZone := "HOLD"
-
-		if marginOfSafety >= 10.0 {
-			valStatus = "DEEPLY_UNDERVALUED"
-			buyZone = "STRONG_BUY"
-		} else if marginOfSafety >= 3.0 {
-			valStatus = "UNDERVALUED"
-			buyZone = "BUY"
-		} else if marginOfSafety <= -10.0 {
-			valStatus = "DEEPLY_OVERVALUED"
-			buyZone = "STRONG_SELL"
-		} else if marginOfSafety <= -3.0 {
-			valStatus = "OVERVALUED"
-			buyZone = "SELL"
-		}
-
-		return currentPrice, intrinsicValue, marginOfSafety, valStatus, buyZone, peRatio, sectorPE, nextMonthForecast, nextMonthMin, nextMonthMax, avgMonthlyVolPerc * 100.0, avgMonthlyTrendGrowth * 100.0
+	curPrice := rawInfo.CurrentPrice
+	if curPrice == 0 && len(historyBars) > 0 {
+		curPrice = historyBars[len(historyBars)-1].Close
 	}
 
-	curPrice, fairValue, marginSafety, valStatus, buyZone, relPE, secPE, nextFC, nextMin, nextMax, mVolPerc, mGrowthPerc := computeValuation(rawInfo, historyBars)
+	trendAnalysis := analyzer.CalculateTrendDeviation(curPrice, historyBars)
+
+	peRatio := rawInfo.TrailingPE
+	eps := rawInfo.TrailingEps
+	earningsGrowth := rawInfo.EarningsGrowth
+	rawPeg := rawInfo.PegRatio
+
+	quantRatios := analyzer.CalculateValuationRatios(rawPeg, peRatio, eps, curPrice, earningsGrowth)
 
 	report := &types.FullValuationReport{
-		Symbol:               symbol,
-		FetchedAt:            time.Now(),
-		SharpeRatio:          sharpeVal,
-		SortinoRatio:         sortinoVal,
-		AnnualizedVolatility: volVal,
-		MaxDrawdown:          maxDDVal,
-		CurrentPrice:         curPrice,
-		IntrinsicValue:       fairValue,
-		MarginOfSafety:       marginSafety,
-		ValuationStatus:      valStatus,
-		BuySellZone:          buyZone,
-		RelativePE:           relPE,
-		SectorPE:             secPE,
-		NextMonthForecast:    nextFC,
-		NextMonthMin:         nextMin,
-		NextMonthMax:         nextMax,
-		MonthlyVolPerc:       mVolPerc,
-		MonthlyGrowthPerc:    mGrowthPerc,
-		RawInfo:              rawInfo,
-		History:              historyBars,
-		CashFlow:             cfItems,
-		IncomeStatement:      isItems,
-		BalanceSheet:         bsItems,
+		Symbol:                symbol,
+		FetchedAt:             time.Now(),
+		SharpeRatio:           sharpeVal,
+		SortinoRatio:          sortinoVal,
+		AnnualizedVolatility:  volVal,
+		MaxDrawdown:           maxDDVal,
+		CurrentPrice:          curPrice,
+		WeightedTrendPrice:    trendAnalysis.WeightedTrendPrice,
+		IntrinsicValue:        trendAnalysis.WeightedTrendPrice, // Trend price baseline
+		PriceToTrendDeviation: trendAnalysis.PriceToTrendDeviation,
+		MarginOfSafety:        trendAnalysis.PriceToTrendDeviation, // Trend deviation %
+		ValuationStatus:       trendAnalysis.ValuationStatus,
+		BuySellZone:           trendAnalysis.BuySellZone,
+		RelativePE:            peRatio,
+		PEGRatio:              quantRatios.PEGRatio,
+		EarningsYield:         quantRatios.EarningsYield,
+		Recommendations:       recTrend,
+		NextMonthForecast:     trendAnalysis.NextMonthForecast,
+		NextMonthMin:          trendAnalysis.NextMonthMin,
+		NextMonthMax:          trendAnalysis.NextMonthMax,
+		MonthlyVolPerc:        trendAnalysis.MonthlyVolPerc,
+		MonthlyGrowthPerc:     trendAnalysis.MonthlyGrowthPerc,
+		RawInfo:               rawInfo,
+		History:               historyBars,
+		CashFlow:              cfItems,
+		IncomeStatement:       isItems,
+		BalanceSheet:          bsItems,
 	}
 
 	// Save complete 5-year report to BoltDB
@@ -366,8 +172,8 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		if err := st.SaveValuationReport(report); err != nil {
 			log.Printf("⚠️ Failed to save report for [%s] to BoltDB: %v\n", symbol, err)
 		} else {
-			log.Printf("💾 [CACHE_STORED] Saved Complete 5-Year Valuation Report for [%s] (Sharpe: %.2f, Volatility: %.2f%%)\n",
-				symbol, sharpeVal, volVal)
+			log.Printf("💾 [CACHE_STORED] Saved Report for [%s] (Sharpe: %.2f, Sortino: %.2f, Volatility: %.2f%%)\n",
+				symbol, sharpeVal, sortinoVal, volVal)
 		}
 	}
 
