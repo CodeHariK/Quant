@@ -1,4 +1,5 @@
 import { JSX, ParentProps } from 'solid-js';
+import { Text } from './Text';
 
 export interface CardProps extends ParentProps {
   title?: string;
@@ -16,8 +17,8 @@ export function Card(props: CardProps) {
       {(props.title || props.headerAction) && (
         <div class={props.headerClass || "flex justify-between items-center mb-4 border-b border-primary pb-2"}>
           <div>
-            {props.title && <div class={props.titleClass || "font-label-caps text-label-caps text-muted-gray uppercase"}>{props.title}</div>}
-            {props.subtitle && <p class="font-code-md text-code-md text-muted-gray mt-1">{props.subtitle}</p>}
+            {props.title && <Text variant="h3">{props.title}</Text>}
+            {props.subtitle && <Text variant="h3">{props.subtitle}</Text>}
           </div>
           {props.headerAction}
         </div>

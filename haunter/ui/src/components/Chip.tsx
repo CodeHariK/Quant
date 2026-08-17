@@ -13,7 +13,7 @@ export interface ChipProps {
 
 export function Chip(props: ChipProps) {
   const dotColorClasses: Record<ChipColor, string> = {
-    success: 'bg-[#00FF41]',
+    success: 'bg-[#2fa84f]',
     error: 'bg-critical-red',
     warning: 'bg-amber-500',
     info: 'bg-blue-500',
@@ -26,12 +26,11 @@ export function Chip(props: ChipProps) {
   return (
     <div
       onClick={props.onClick}
-      class={`px-2.5 py-0.5 text-[11px] uppercase border border-black dark:border-zinc-700 bg-transparent text-black dark:text-white inline-flex items-center gap-1.5 transition-colors font-mono font-bold ${
-        props.onClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' : ''
-      } ${props.class || ''}`}
+      class={`px-2.5 py-0.5 uppercase border border-black dark:border-zinc-700 bg-transparent inline-flex items-center gap-1.5 transition-colors font-mono ${props.onClick ? 'cursor-pointer' : ''
+        } ${props.class || ''}`}
     >
       <span class={`w-2 h-2 rounded-full inline-block ${currentDotClass()}`} />
-      <span>{props.label}</span>
+      <Text variant='body'>{props.label}</Text>
       {props.onRemove && (
         <span
           onClick={(e) => {

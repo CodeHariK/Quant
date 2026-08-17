@@ -45,6 +45,7 @@ type FinancialStatementItem struct {
 // 3. CashFlow: Complete annual line items map
 // 4. IncomeStatement: Complete annual line items map
 // 5. BalanceSheet: Complete annual line items map
+// 6. Intrinsic Valuation: DCF Fair Value, Margin of Safety, Relative Valuation, and Buy/Sell Radar
 type FullValuationReport struct {
 	Symbol               string                   `json:"symbol"`
 	FetchedAt            time.Time                `json:"fetchedAt"`
@@ -52,6 +53,19 @@ type FullValuationReport struct {
 	SortinoRatio         float64                  `json:"sortinoRatio"`
 	AnnualizedVolatility float64                  `json:"annualizedVolatility"`
 	MaxDrawdown          float64                  `json:"maxDrawdown"`
+	// Valuation & Buy/Sell Zone Engine Fields
+	IntrinsicValue       float64                  `json:"intrinsicValue"`       // 1Y Recency-Weighted Fair Value Target
+	CurrentPrice         float64                  `json:"currentPrice"`         // Market Price
+	MarginOfSafety       float64                  `json:"marginOfSafety"`       // % Discount or Premium to Fair Value
+	ValuationStatus      string                   `json:"valuationStatus"`      // DEEPLY_UNDERVALUED | UNDERVALUED | FAIRLY_VALUED | OVERVALUED | DEEPLY_OVERVALUED
+	BuySellZone          string                   `json:"buySellZone"`          // STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL
+	RelativePE           float64                  `json:"relativePE"`           // Trailing P/E
+	SectorPE             float64                  `json:"sectorPE"`             // Estimated Benchmark P/E
+	NextMonthForecast    float64                  `json:"nextMonthForecast"`    // Projected Expected Target for Next Month
+	NextMonthMin         float64                  `json:"nextMonthMin"`         // Expected Lower Monthly Range
+	NextMonthMax         float64                  `json:"nextMonthMax"`         // Expected Upper Monthly Range
+	MonthlyVolPerc       float64                  `json:"monthlyVolPerc"`       // Average Monthly Volatility Percentage Spread
+	MonthlyGrowthPerc    float64                  `json:"monthlyGrowthPerc"`    // Average Month-over-Month Growth Rate %
 	RawInfo              *models.Info             `json:"rawInfo"`
 	History              []HistoryBar             `json:"history"`
 	CashFlow             []FinancialStatementItem `json:"cashFlow"`

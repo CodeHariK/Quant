@@ -9,6 +9,7 @@ import (
 	"github.com/wnjoon/go-yfinance/pkg/models"
 	"github.com/wnjoon/go-yfinance/pkg/multi"
 	"github.com/wnjoon/go-yfinance/pkg/ticker"
+	"haunter/config"
 	"haunter/logger"
 	"haunter/store"
 	"haunter/types"
@@ -143,9 +144,9 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		sumDownsideSquareDiff := 0.0
 		downsideCount := 0
 
-		// Risk-free rate assumptions (7% annual risk-free rate = ~0.000277 daily)
-		const annualRiskFreeRate = 0.07
-		dailyRiskFreeRate := annualRiskFreeRate / 252.0
+		// Risk-free rate assumptions from config
+		annualRiskFreeRate := config.AnnualRiskFreeRate
+		dailyRiskFreeRate := annualRiskFreeRate / config.TradingDaysPerYear
 
 		for _, r := range returns {
 			diff := r - meanReturn
@@ -162,13 +163,13 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		dailyVolatility := math.Sqrt(dailyVariance)
 
 		// Annualized Return & Annualized Volatility (252 trading days)
-		annualizedReturn := meanReturn * 252.0
-		annualizedVol := dailyVolatility * math.Sqrt(252.0)
+		annualizedReturn := meanReturn * config.TradingDaysPerYear
+		annualizedVol := dailyVolatility * math.Sqrt(config.TradingDaysPerYear)
 
 		// Annualized Downside Volatility
 		downsideVolatility := 0.0
 		if len(returns) > 0 && sumDownsideSquareDiff > 0 {
-			downsideVolatility = math.Sqrt(sumDownsideSquareDiff/float64(len(returns))) * math.Sqrt(252.0)
+			downsideVolatility = math.Sqrt(sumDownsideSquareDiff/float64(len(returns))) * math.Sqrt(config.TradingDaysPerYear)
 		}
 
 		// Sharpe Ratio = (Annualized Return - Risk Free Rate) / Annualized Volatility
@@ -186,6 +187,154 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 
 	sharpeVal, sortinoVal, volVal, maxDDVal := computeRiskMetrics(historyBars)
 
+	// 1-Year Recency-Weighted Monthly Mean Valuation & Next Month Forecast Engine
+	computeValuation := func(info *models.Info, bars []types.HistoryBar) (float64, float64, float64, string, string, float64, float64, float64, float64, float64, float64, float64) {
+		currentPrice := 0.0
+		if info != nil {
+			currentPrice = info.CurrentPrice
+		}
+		if currentPrice == 0 && len(bars) > 0 {
+			currentPrice = bars[len(bars)-1].Close
+		}
+
+		peRatio := 0.0
+		sectorPE := 22.5
+		if info != nil {
+			peRatio = info.TrailingPE
+		}
+
+		// Group price bars by year-month (YYYY-MM) over the last 12 months (252 trading bars)
+		type MonthStats struct {
+			High float64
+			Low  float64
+		}
+
+		monthMap := make(map[string]*MonthStats)
+		monthKeys := make([]string, 0)
+
+		// Filter for the last ~252 trading bars (1 Year)
+		startIdx := 0
+		if len(bars) > 252 {
+			startIdx = len(bars) - 252
+		}
+
+		for i := startIdx; i < len(bars); i++ {
+			b := bars[i]
+			// Parse date timestamp string (e.g., 2026-08-15) to YYYY-MM
+			ym := b.Date
+			if len(b.Date) >= 7 {
+				ym = b.Date[:7]
+			}
+
+			if stats, exists := monthMap[ym]; exists {
+				if b.High > stats.High {
+					stats.High = b.High
+				}
+				if b.Low < stats.Low && b.Low > 0 {
+					stats.Low = b.Low
+				}
+			} else {
+				monthMap[ym] = &MonthStats{
+					High: b.High,
+					Low:  b.Low,
+				}
+				monthKeys = append(monthKeys, ym)
+			}
+		}
+
+		// Keep at most last 12 months
+		if len(monthKeys) > 12 {
+			monthKeys = monthKeys[len(monthKeys)-12:]
+		}
+
+		// Calculate:
+		// 1. Average Monthly Volatility Percentage Spread: mean( (High - Low) / MonthAvg )
+		// 2. Average Monthly Trend Growth Rate: mean( (MonthAvg[i] - MonthAvg[i-1]) / MonthAvg[i-1] )
+		weightedMeanSum := 0.0
+		totalWeight := 0.0
+		monthlyVolatilityPercSum := 0.0
+		monthlyTrendChangeSum := 0.0
+		trendCount := 0
+
+		monthlyMeans := make([]float64, 0, len(monthKeys))
+
+		for idx, ym := range monthKeys {
+			stats := monthMap[ym]
+			monthMean := (stats.High + stats.Low) / 2.0
+			monthlyMeans = append(monthlyMeans, monthMean)
+
+			weight := float64(idx + 1) // Linear recency weight
+			weightedMeanSum += monthMean * weight
+			totalWeight += weight
+
+			// Calculate percentage spread for this month: (High - Low) / MonthAvg
+			if monthMean > 0 {
+				mVolPerc := (stats.High - stats.Low) / monthMean
+				monthlyVolatilityPercSum += mVolPerc
+			}
+
+			// Calculate month-over-month percentage price trend change
+			if idx > 0 && monthlyMeans[idx-1] > 0 {
+				pctChange := (monthMean - monthlyMeans[idx-1]) / monthlyMeans[idx-1]
+				monthlyTrendChangeSum += pctChange
+				trendCount++
+			}
+		}
+
+		intrinsicValue := currentPrice
+		if totalWeight > 0 {
+			intrinsicValue = weightedMeanSum / totalWeight
+		}
+
+		// Average Volatility Percentage per month
+		avgMonthlyVolPerc := 0.10 // 10% default fallback
+		if len(monthKeys) > 0 {
+			avgMonthlyVolPerc = monthlyVolatilityPercSum / float64(len(monthKeys))
+		}
+
+		// Average Month-over-Month Trend Growth Rate %
+		avgMonthlyTrendGrowth := 0.0
+		if trendCount > 0 {
+			avgMonthlyTrendGrowth = monthlyTrendChangeSum / float64(trendCount)
+		}
+
+		// Project Next Month Forecast Target Price: Current Price * (1 + Average Monthly Trend Growth)
+		nextMonthForecast := currentPrice * (1.0 + avgMonthlyTrendGrowth)
+
+		// Expected Next Month Lower & Upper Range Bounds using the Mean Volatility Percentage Spread
+		halfBandPerc := avgMonthlyVolPerc / 2.0
+		nextMonthMin := nextMonthForecast * (1.0 - halfBandPerc)
+		nextMonthMax := nextMonthForecast * (1.0 + halfBandPerc)
+
+		// Calculate Margin of Safety (% Discount or Premium relative to 1Y Recency-Weighted Fair Value)
+		marginOfSafety := 0.0
+		if intrinsicValue > 0 {
+			marginOfSafety = ((intrinsicValue - currentPrice) / intrinsicValue) * 100.0
+		}
+
+		// Determine Valuation Status & Buy/Sell Zone
+		valStatus := "FAIRLY_VALUED"
+		buyZone := "HOLD"
+
+		if marginOfSafety >= 10.0 {
+			valStatus = "DEEPLY_UNDERVALUED"
+			buyZone = "STRONG_BUY"
+		} else if marginOfSafety >= 3.0 {
+			valStatus = "UNDERVALUED"
+			buyZone = "BUY"
+		} else if marginOfSafety <= -10.0 {
+			valStatus = "DEEPLY_OVERVALUED"
+			buyZone = "STRONG_SELL"
+		} else if marginOfSafety <= -3.0 {
+			valStatus = "OVERVALUED"
+			buyZone = "SELL"
+		}
+
+		return currentPrice, intrinsicValue, marginOfSafety, valStatus, buyZone, peRatio, sectorPE, nextMonthForecast, nextMonthMin, nextMonthMax, avgMonthlyVolPerc * 100.0, avgMonthlyTrendGrowth * 100.0
+	}
+
+	curPrice, fairValue, marginSafety, valStatus, buyZone, relPE, secPE, nextFC, nextMin, nextMax, mVolPerc, mGrowthPerc := computeValuation(rawInfo, historyBars)
+
 	report := &types.FullValuationReport{
 		Symbol:               symbol,
 		FetchedAt:            time.Now(),
@@ -193,6 +342,18 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		SortinoRatio:         sortinoVal,
 		AnnualizedVolatility: volVal,
 		MaxDrawdown:          maxDDVal,
+		CurrentPrice:         curPrice,
+		IntrinsicValue:       fairValue,
+		MarginOfSafety:       marginSafety,
+		ValuationStatus:      valStatus,
+		BuySellZone:          buyZone,
+		RelativePE:           relPE,
+		SectorPE:             secPE,
+		NextMonthForecast:    nextFC,
+		NextMonthMin:         nextMin,
+		NextMonthMax:         nextMax,
+		MonthlyVolPerc:       mVolPerc,
+		MonthlyGrowthPerc:    mGrowthPerc,
 		RawInfo:              rawInfo,
 		History:              historyBars,
 		CashFlow:             cfItems,

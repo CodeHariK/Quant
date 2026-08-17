@@ -6,19 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"haunter/config"
 	"haunter/types"
 
 	"github.com/boltdb/bolt"
-)
-
-const (
-	dbPath          = "haunter_cache.db"
-	reportsBucket   = "ValuationReports"
-	watchlistBucket = "Watchlist"
-	watchlistKey    = "user_watchlist"
-	kiteBucket      = "KiteSession"
-	kiteSessionKey  = "user_kite_session"
-	tradebookBucket = "TradebookRecords"
 )
 
 type TradebookRecord struct {
@@ -50,22 +41,25 @@ var globalStore *Store
 
 // InitStore opens embedded BoltDB and creates ValuationReports, Watchlist, KiteSession, and TradebookRecords buckets
 func InitStore() (*Store, error) {
-	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(config.DBPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open bolt DB: %w", err)
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		if _, err := tx.CreateBucketIfNotExists([]byte(reportsBucket)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.ReportsBucket)); err != nil {
 			return err
 		}
-		if _, err := tx.CreateBucketIfNotExists([]byte(watchlistBucket)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.WatchlistBucket)); err != nil {
 			return err
 		}
-		if _, err := tx.CreateBucketIfNotExists([]byte(kiteBucket)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.KiteBucket)); err != nil {
 			return err
 		}
-		if _, err := tx.CreateBucketIfNotExists([]byte(tradebookBucket)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.KitePortfolioBucket)); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.TradebookBucket)); err != nil {
 			return err
 		}
 		return nil
@@ -77,10 +71,9 @@ func InitStore() (*Store, error) {
 	globalStore = &Store{db: db}
 
 	// Seed default watchlist if empty
-	defaultWatchlist := []string{"^NSEMDCP50", "USDINR=X", "SMH", "CL=F"}
 	current, _ := globalStore.GetWatchlist()
 	if len(current) == 0 {
-		_ = globalStore.SaveWatchlist(defaultWatchlist)
+		_ = globalStore.SaveWatchlist(config.DefaultWatchlist)
 	}
 
 	return globalStore, nil
@@ -109,7 +102,7 @@ func (s *Store) GetValuationReport(symbol string) (*types.FullValuationReport, b
 	found := false
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(reportsBucket))
+		b := tx.Bucket([]byte(config.ReportsBucket))
 		if b == nil {
 			return nil
 		}
@@ -136,7 +129,7 @@ func (s *Store) GetValuationReport(symbol string) (*types.FullValuationReport, b
 // SaveValuationReport saves a FullValuationReport to BoltDB
 func (s *Store) SaveValuationReport(report *types.FullValuationReport) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(reportsBucket))
+		b := tx.Bucket([]byte(config.ReportsBucket))
 		if b == nil {
 			return fmt.Errorf("bucket not found")
 		}
@@ -154,11 +147,11 @@ func (s *Store) SaveValuationReport(report *types.FullValuationReport) error {
 func (s *Store) GetWatchlist() ([]string, error) {
 	var list []string
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(watchlistBucket))
+		b := tx.Bucket([]byte(config.WatchlistBucket))
 		if b == nil {
 			return nil
 		}
-		data := b.Get([]byte(watchlistKey))
+		data := b.Get([]byte(config.WatchlistKey))
 		if data == nil {
 			return nil
 		}
@@ -170,7 +163,7 @@ func (s *Store) GetWatchlist() ([]string, error) {
 // SaveWatchlist saves current list of symbols to BoltDB
 func (s *Store) SaveWatchlist(symbols []string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(watchlistBucket))
+		b := tx.Bucket([]byte(config.WatchlistBucket))
 		if b == nil {
 			return fmt.Errorf("watchlist bucket not found")
 		}
@@ -178,7 +171,7 @@ func (s *Store) SaveWatchlist(symbols []string) error {
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(watchlistKey), data)
+		return b.Put([]byte(config.WatchlistKey), data)
 	})
 }
 
@@ -231,7 +224,7 @@ func (s *Store) RemoveWatchlistSymbol(symbol string) ([]string, error) {
 // SaveKiteSession stores Kite API key, secret, and access token to BoltDB
 func (s *Store) SaveKiteSession(session *KiteSessionData) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(kiteBucket))
+		b := tx.Bucket([]byte(config.KiteBucket))
 		if b == nil {
 			return fmt.Errorf("kite bucket not found")
 		}
@@ -239,7 +232,7 @@ func (s *Store) SaveKiteSession(session *KiteSessionData) error {
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(kiteSessionKey), data)
+		return b.Put([]byte(config.KiteSessionKey), data)
 	})
 }
 
@@ -248,11 +241,11 @@ func (s *Store) GetKiteSession() (*KiteSessionData, bool) {
 	var session KiteSessionData
 	found := false
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(kiteBucket))
+		b := tx.Bucket([]byte(config.KiteBucket))
 		if b == nil {
 			return nil
 		}
-		data := b.Get([]byte(kiteSessionKey))
+		data := b.Get([]byte(config.KiteSessionKey))
 		if data == nil {
 			return nil
 		}
@@ -268,21 +261,58 @@ func (s *Store) GetKiteSession() (*KiteSessionData, bool) {
 	return &session, true
 }
 
-// DeleteKiteSession removes stored Zerodha session & access token from BoltDB
+// DeleteKiteSession removes stored Zerodha session & cached portfolio from BoltDB
 func (s *Store) DeleteKiteSession() error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(kiteBucket))
+		if b := tx.Bucket([]byte(config.KiteBucket)); b != nil {
+			_ = b.Delete([]byte(config.KiteSessionKey))
+		}
+		if b := tx.Bucket([]byte(config.KitePortfolioBucket)); b != nil {
+			_ = b.Delete([]byte(config.KitePortfolioKey))
+		}
+		return nil
+	})
+}
+
+// SaveKitePortfolio persists the fetched Zerodha portfolio JSON payload to BoltDB
+func (s *Store) SaveKitePortfolio(report interface{}) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(config.KitePortfolioBucket))
+		if b == nil {
+			return fmt.Errorf("kite portfolio bucket not found")
+		}
+		data, err := json.Marshal(report)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(config.KitePortfolioKey), data)
+	})
+}
+
+// GetKitePortfolio retrieves stored Zerodha portfolio report from BoltDB
+func (s *Store) GetKitePortfolio(target interface{}) bool {
+	found := false
+	_ = s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(config.KitePortfolioBucket))
 		if b == nil {
 			return nil
 		}
-		return b.Delete([]byte(kiteSessionKey))
+		data := b.Get([]byte(config.KitePortfolioKey))
+		if data == nil {
+			return nil
+		}
+		if err := json.Unmarshal(data, target); err == nil {
+			found = true
+		}
+		return nil
 	})
+	return found
 }
 
 // SaveTradebookRecords persists parsed Zerodha Tradebook records to BoltDB
 func (s *Store) SaveTradebookRecords(records []TradebookRecord) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(tradebookBucket))
+		b := tx.Bucket([]byte(config.TradebookBucket))
 		if b == nil {
 			return fmt.Errorf("tradebook bucket not found")
 		}
@@ -307,7 +337,7 @@ func (s *Store) GetTradebookRecords(yearFilter int) ([]TradebookRecord, []int, e
 	yearsMap := make(map[int]bool)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(tradebookBucket))
+		b := tx.Bucket([]byte(config.TradebookBucket))
 		if b == nil {
 			return nil
 		}

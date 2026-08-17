@@ -75,7 +75,7 @@ export function OutlineButton(props: ButtonProps) {
     <button
       {...props}
       disabled={props.disabled || props.loading}
-      class={`bg-transparent border border-black text-black ${sizeClass()} font-bold hover:bg-gray-100 disabled:opacity-50 uppercase cursor-pointer transition-colors ${props.class || ''
+      class={`bg-transparent border border-black ${sizeClass()} font-bold hover:bg-gray-100 disabled:opacity-50 uppercase cursor-pointer transition-colors ${props.class || ''
         }`}
     >
       {props.loading ? 'LOADING...' : props.children}

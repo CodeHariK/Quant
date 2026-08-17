@@ -13,7 +13,7 @@ export default function Landing() {
       <section class="border-b border-black p-16 flex flex-col items-center text-center relative overflow-hidden bg-surface-container-high dark:bg-[#121414]">
         <div class="relative z-10 max-w-3xl flex flex-col items-center">
           <div class="inline-flex items-center gap-2 border border-black px-3 py-1 mb-6 bg-white dark:bg-[#181a1a]">
-            <span class="w-2 h-2 rounded-full bg-[#00FF41]"></span>
+            <span class="w-2 h-2 rounded-full bg-[#2fa84f]"></span>
             <Text variant="label" class="text-black dark:text-white">System Status: Operational</Text>
           </div>
           <Text variant="h1" class="mb-6 leading-tight">

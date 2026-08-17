@@ -21,6 +21,18 @@ export interface FullValuationReport {
   sortinoRatio?: number;
   annualizedVolatility?: number;
   maxDrawdown?: number;
+  intrinsicValue?: number;
+  currentPrice?: number;
+  marginOfSafety?: number;
+  valuationStatus?: string;
+  buySellZone?: string;
+  relativePE?: number;
+  sectorPE?: number;
+  nextMonthForecast?: number;
+  nextMonthMin?: number;
+  nextMonthMax?: number;
+  monthlyVolPerc?: number;
+  monthlyGrowthPerc?: number;
   rawInfo: Record<string, any>;
   history: HistoryBar[];
   cashFlow: FinancialStatementItem[];

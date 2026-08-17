@@ -32,21 +32,21 @@ export function Text(props: TextProps) {
       case 'body':
         return 'text-sm leading-relaxed font-mono';
       case 'body-sm':
-        return 'text-xs  leading-relaxed font-mono';
+        return 'text-xs leading-relaxed font-mono';
       case 'label':
-        return 'font-label-caps text-label-caps uppercase font-bold tracking-wider';
+        return 'font-label-caps text-label-caps uppercase font-bold tracking-wider opacity-80';
       case 'code':
-        return 'font-mono text-xs ';
+        return 'font-mono text-xs';
       case 'muted':
-        return 'text-xs text-muted-gray dark:text-zinc-400 font-mono';
+        return 'text-xs text-gray-500 font-mono';
       case 'success':
-        return 'text-xs font-mono font-bold text-terminal-green dark:text-[#4cba68]';
+        return 'text-xs font-mono font-bold text-terminal-green';
       case 'error':
-        return 'text-xs font-mono font-bold text-critical-red dark:text-[#FF3B30]';
+        return 'text-xs font-mono font-bold text-critical-red';
       case 'accent':
         return 'text-xs font-mono font-bold text-blue-600 dark:text-blue-400';
       default:
-        return 'text-sm  dark:text-gray-200 font-mono';
+        return 'text-sm font-mono';
     }
   };
 

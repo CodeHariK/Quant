@@ -17,7 +17,7 @@ export default function Ticker() {
 
   // Read initial symbol from URL query parameter (e.g. ?symbol=GVT%26D.NS or ?symbol=AAPL)
   const rawSymbol = Array.isArray(searchParams.symbol) ? searchParams.symbol[0] : searchParams.symbol;
-  const initialSymbol = rawSymbol ? decodeURIComponent(rawSymbol) : 'RELIANCE.NS';
+  const initialSymbol = rawSymbol ? decodeURIComponent(rawSymbol) : 'GLD';
 
   const [selectedSymbol, setSelectedSymbol] = createSignal<string>(initialSymbol);
   const [watchlist, setWatchlist] = createSignal<string[]>(['AAPL', 'NVDA']);
@@ -97,7 +97,7 @@ export default function Ticker() {
 
   const stockInfo = () => fullReport()?.rawInfo || (fullReport() as any)?.info;
 
-  const [activeModal, setActiveModal] = createSignal<'sharpe' | 'sortino' | 'volatility' | 'drawdown' | null>(null);
+  const [activeModal, setActiveModal] = createSignal<'sharpe' | 'sortino' | 'volatility' | 'drawdown' | 'dcf' | null>(null);
 
   const getSharpeGrade = (val: number): { grade: string; color: ChipColor } => {
     if (val >= 3.0) return { grade: 'EXCELLENT', color: 'accent' };
@@ -139,20 +139,13 @@ export default function Ticker() {
           <Text variant="label">WATCHLIST (BOLTDB):</Text>
           <div class="flex flex-wrap items-center gap-2">
             {watchlist().map((sym) => (
-              <div
+              <Chip
+                label={sym}
+                color={selectedSymbol() === sym ? 'accent' : 'neutral'}
                 onClick={() => setSelectedSymbol(sym)}
-                class={`px-3 py-1 text-xs font-bold uppercase cursor-pointer border flex items-center gap-2 transition-colors ${selectedSymbol() === sym ? 'bg-black text-white border-black' : 'bg-surface hover:bg-gray-100 border-gray-300 text-black'
-                  }`}
-              >
-                <Text variant="code" class={selectedSymbol() === sym ? 'text-white dark:text-black font-bold' : 'font-bold'}>{sym}</Text>
-                <span
-                  onClick={(e) => handleRemoveSymbol(sym, e)}
-                  class="material-symbols-outlined text-[14px] opacity-60 hover:opacity-100 hover:text-critical-red"
-                  title="Remove from watchlist"
-                >
-                  close
-                </span>
-              </div>
+                onRemove={(e) => handleRemoveSymbol(sym, e)}
+                class={selectedSymbol() === sym ? 'border-2 font-bold' : ''}
+              />
             ))}
           </div>
         </div>
@@ -161,7 +154,7 @@ export default function Ticker() {
         <form onSubmit={handleAddSymbol} class="flex items-center gap-2 w-full md:w-auto">
           <Input
             type="text"
-            placeholder="ADD TICKER (e.g. AMZN, RELIANCE.NS)"
+            placeholder="ADD TICKER (e.g. GLD)"
             value={newSymbolInput()}
             onInput={(e) => setNewSymbolInput(e.currentTarget.value)}
             class="w-full md:w-64"
@@ -172,7 +165,7 @@ export default function Ticker() {
         </form>
       </div>
 
-      {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading stock report from BoltDB cache...</Text>}
+      {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading valuation report from BoltDB cache...</Text>}
       {error() && <Text variant="error" class="mb-4 block">{error()}</Text>}
 
       {/* Model & Stock Header */}
@@ -181,7 +174,7 @@ export default function Ticker() {
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <div class="flex items-center gap-3 mb-2 text-xs">
-              <span class="w-3 h-3 bg-[#00FF41] inline-block border border-black"></span>
+              <span class="w-3 h-3 bg-[#2fa84f] inline-block border border-black"></span>
               <Text variant="label">VALUATION ENGINE: YFINANCE (FULL RAW DATA)</Text>
               <Text variant="code" class="border border-gray-200 px-2 py-0.5 ml-2 font-bold">{stockInfo()?.symbol || selectedSymbol()}</Text>
             </div>
@@ -201,6 +194,101 @@ export default function Ticker() {
           </div>
         </div>
       </header>
+
+      {/* 🎯 INTRINSIC VALUATION & BUY/SELL ZONE RADAR HERO SECTION */}
+      {fullReport() && (
+        <div class="border-2 border-black bg-white p-6 mb-8 relative">
+          <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-3">
+            <div>
+              <Text variant="h2" class="text-lg">🎯 INTRINSIC VALUE & BUY/SELL ZONE RADAR</Text>
+              <Text variant="muted" class="block text-xs mt-1">1-Year Recency-Weighted Monthly Mean & Margin of Safety Evaluation</Text>
+            </div>
+            <button
+              onClick={() => setActiveModal('dcf')}
+              class="text-xs font-mono font-bold border border-black px-3 py-1 bg-gray-100 hover:bg-black hover:text-white transition-colors"
+            >
+              ℹ️ HOW FAIR VALUE IS CALCULATED
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+            {/* Valuation Status Badge */}
+            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900 text-center">
+              <Text variant="label" class="block mb-1">VALUATION STATUS</Text>
+              <Chip
+                label={fullReport()?.valuationStatus?.replace('_', ' ') || 'EVALUATING'}
+                color={
+                  (fullReport()?.marginOfSafety ?? 0) >= 10
+                    ? 'success'
+                    : (fullReport()?.marginOfSafety ?? 0) <= -10
+                    ? 'error'
+                    : 'info'
+                }
+                class="text-sm py-1 px-3 font-bold"
+              />
+              <Text variant="muted" class="block mt-2 text-[10px]">
+                {(fullReport()?.marginOfSafety ?? 0) >= 0
+                  ? `${(fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Discount to Fair Value`
+                  : `${Math.abs(fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Overvalued Premium`}
+              </Text>
+            </div>
+
+            {/* Fair Value vs Market Price */}
+            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
+              <Text variant="label" class="block mb-1">FAIR VALUE TARGET (1Y MEAN)</Text>
+              <Text variant="h1" class="text-2xl text-terminal-green font-bold block">
+                {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                {(fullReport()?.intrinsicValue ?? 0).toFixed(2)}
+              </Text>
+              <Text variant="muted" class="block mt-1 text-[11px]">
+                Current Price: <span class="font-bold text-black dark:text-white">
+                  {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                  {(fullReport()?.currentPrice ?? 0).toFixed(2)}
+                </span>
+              </Text>
+            </div>
+
+            {/* NEXT MONTH PRICE FORECAST */}
+            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
+              <Text variant="label" class="block mb-1">
+                NEXT MONTH FORECAST 🔮 ({(fullReport()?.monthlyGrowthPerc ?? 0) >= 0 ? '+' : ''}{(fullReport()?.monthlyGrowthPerc ?? 0).toFixed(2)}%)
+              </Text>
+              <Text variant="h1" class="text-2xl text-blue-500 font-bold block">
+                {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                {(fullReport()?.nextMonthForecast ?? 0).toFixed(2)}
+              </Text>
+              <Text variant="muted" class="block mt-1 text-[10px]">
+                Range (±{(fullReport()?.monthlyVolPerc ?? 10).toFixed(1)}% Vol): <span class="font-bold text-black dark:text-white">
+                  {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                  {(fullReport()?.nextMonthMin ?? 0).toFixed(0)} - {(fullReport()?.nextMonthMax ?? 0).toFixed(0)}
+                </span>
+              </Text>
+            </div>
+
+            {/* Margin of Safety */}
+            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
+              <Text variant="label" class="block mb-1">MARGIN OF SAFETY</Text>
+              <Text
+                variant={(fullReport()?.marginOfSafety ?? 0) >= 15 ? 'success' : (fullReport()?.marginOfSafety ?? 0) >= 0 ? 'accent' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(fullReport()?.marginOfSafety ?? 0) >= 0 ? '+' : ''}
+                {(fullReport()?.marginOfSafety ?? 0).toFixed(1)}%
+              </Text>
+              <Text variant="muted" class="block mt-1 text-[11px]">Target Margin: &gt; 15.0%</Text>
+            </div>
+
+            {/* Recommendation Decision */}
+            <div class="border border-black p-4 bg-black text-white text-center">
+              <Text variant="label" class="block mb-1 text-gray-300">RECOMMENDATION</Text>
+              <Text variant="h1" class="text-xl text-[#00FF41] font-bold block tracking-wider">
+                {fullReport()?.buySellZone?.replace('_', ' ') || 'HOLD'}
+              </Text>
+              <span class="text-[10px] uppercase font-mono text-gray-400 block mt-1">Value Investor Signal</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quant Risk & Volatility Metrics Header Grid with Colored Grade Badges & Formula Info Modals */}
       {fullReport() && (
@@ -378,6 +466,30 @@ export default function Ticker() {
         </p>
         <div class="space-y-2 text-xs">
           <p>Measures the worst historical loss an investor would have suffered buying at the 5-year peak before price bottomed out.</p>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={activeModal() === 'dcf'}
+        onClose={() => setActiveModal(null)}
+        title="1-Year Recency-Weighted Monthly Mean Valuation Engine"
+      >
+        <p class="font-mono bg-gray-100 dark:bg-zinc-800 p-3 border border-black text-center font-bold">
+          Fair Value Target = ∑ [ Month_Mean × Weight ] / Total_Weights (12 Months)
+        </p>
+        <div class="space-y-2 text-xs">
+          <p><strong>Monthly High/Low Mean:</strong> Takes `(Monthly High + Monthly Low) / 2` for each of the past 12 months.</p>
+          <p><strong>Linear Recency Weighting:</strong> Gives higher weight to more recent months (Month 12 weight = 12, Month 1 weight = 1).</p>
+          <p><strong>Monthly Volatility Percentage Range 🔮:</strong> Calculates `(Monthly High - Monthly Low) / MonthAvg` for each month, averages the % spread across 12 months, and applies this mean % volatility to forecast next month's expected price range.</p>
+          <p><strong>Margin of Safety:</strong> % Discount or Premium of the current stock market price relative to the 1-Year weighted average mean price.</p>
+          <div class="bg-surface dark:bg-zinc-800 p-3 border border-gray-300 dark:border-zinc-700 mt-2">
+            <p class="font-bold text-black dark:text-white mb-1">Buy/Sell Zone Guide:</p>
+            <ul class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>STRONG BUY / BUY:</strong> Stock is trading at a &gt;3-10% discount below its recency-weighted mean.</li>
+              <li><strong>HOLD:</strong> Stock is trading close to its 1-year recency-weighted mean.</li>
+              <li><strong>SELL / STRONG SELL:</strong> Stock is trading at a &gt;3-10% premium above its recency-weighted mean.</li>
+            </ul>
+          </div>
         </div>
       </Modal>
 

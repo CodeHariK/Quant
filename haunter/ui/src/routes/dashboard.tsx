@@ -18,17 +18,21 @@ export default function Dashboard() {
   const [authError, setAuthError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal<boolean>(false);
 
-  const loadPortfolio = () => {
+  const loadPortfolio = (force: boolean = false) => {
     setLoading(true);
-    fetchKitePortfolio()
+    fetchKitePortfolio(force)
       .then((data) => {
         setKiteReport(data);
         setKiteAuth(true);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
         setKiteAuth(false);
+        setKiteReport(null);
         setLoading(false);
+        setAuthError(err.message || 'Zerodha session expired. Please log in with Zerodha again.');
+        // Auto-purge stale BoltDB session
+        deleteKiteSession().catch(() => { });
       });
   };
 
@@ -134,7 +138,7 @@ export default function Dashboard() {
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-gray-200 pb-4">
             <div>
               <Text variant="h2" class="flex items-center gap-2">
-                <span>⚡ ZERODHA KITECONNECT INTEGRATION</span>
+                <Text>ZERODHA KITECONNECT INTEGRATION</Text>
               </Text>
               <Text variant="muted" class="mt-1 block">
                 Authenticate with your Zerodha KiteConnect API key to load live equity holdings, position P&L, and executed trade logs.
@@ -198,8 +202,8 @@ export default function Dashboard() {
               <Text variant="h3" class="text-xs">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</Text>
             </div>
             <div class="flex items-center gap-2">
-              <OutlineButton onClick={loadPortfolio} size="sm">
-                REFRESH PORTFOLIO 🔄
+              <OutlineButton onClick={() => loadPortfolio(true)} size="sm">
+                FORCE REFRESH 🔄
               </OutlineButton>
               <OutlineButton onClick={handleKiteLogout} size="sm" class="border-critical-red text-critical-red">
                 LOGOUT 🚪
@@ -340,7 +344,7 @@ export default function Dashboard() {
           </div>
           <div class="md:col-span-2 border border-primary p-4 flex flex-col justify-center items-center bg-surface-container-high h-32 relative">
             <span class="font-code-md text-code-md text-muted-gray z-10">AGGREGATE INDEX CHART [RENDERING...]</span>
-            <div class="absolute inset-0 opacity-20" style={{ "background-image": "linear-gradient(to right, transparent 0%, #00FF41 50%, transparent 100%)" }}></div>
+            <div class="absolute inset-0 opacity-20" style={{ "background-image": "linear-gradient(to right, transparent 0%, #2fa84f 50%, transparent 100%)" }}></div>
           </div>
         </div>
       </Card>

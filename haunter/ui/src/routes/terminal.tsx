@@ -12,7 +12,7 @@ export default function Terminal() {
         <aside class="w-full md:w-64 border-r border-gray-200 bg-white flex flex-col h-full overflow-y-auto">
           <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
             <h2 class="text-xs font-bold text-gray-500">LIVE TICKERS</h2>
-            <div class="w-2 h-2 rounded-full bg-[#00FF41] animate-pulse"></div>
+            <div class="w-2 h-2 rounded-full bg-[#2fa84f] animate-pulse"></div>
           </div>
           <div class="flex flex-col">
             <div class="p-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
@@ -21,8 +21,8 @@ export default function Terminal() {
                 <div class="text-[10px] text-gray-500">BINANCE</div>
               </div>
               <div class="text-right">
-                <div class="text-xs text-[#00FF41] font-bold">64,231.00</div>
-                <div class="text-[10px] text-[#00FF41]">+2.4%</div>
+                <div class="text-xs text-[#2fa84f] font-bold">64,231.00</div>
+                <div class="text-[10px] text-[#2fa84f]">+2.4%</div>
               </div>
             </div>
             <div class="p-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
@@ -51,15 +51,15 @@ export default function Terminal() {
                 <div class="text-[10px] text-gray-500">NASDAQ</div>
               </div>
               <div class="text-right">
-                <div class="text-xs text-[#00FF41] font-bold">894.52</div>
-                <div class="text-[10px] text-[#00FF41]">+4.8%</div>
+                <div class="text-xs text-[#2fa84f] font-bold">894.52</div>
+                <div class="text-[10px] text-[#2fa84f]">+4.8%</div>
               </div>
             </div>
           </div>
           <div class="mt-auto p-4 border-t border-gray-200 bg-gray-50">
             <div class="text-[10px] font-bold text-gray-500 mb-2">SYSTEM STATUS</div>
             <div class="flex items-center gap-2 text-xs">
-              <span class="text-[#00FF41]">●</span>
+              <span class="text-[#2fa84f]">●</span>
               <span>API LATENCY: 12ms</span>
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function Terminal() {
                 </div>
               </div>
               <div class="mt-auto grid grid-cols-2 gap-4">
-                <button class="bg-[#00FF41] text-black border border-black p-3 font-bold text-sm uppercase hover:opacity-80">
+                <button class="bg-[#2fa84f] text-black border border-black p-3 font-bold text-sm uppercase hover:opacity-80">
                   BUY / LONG
                 </button>
                 <button class="bg-[#FF3B30] text-white border border-black p-3 font-bold text-sm uppercase hover:opacity-80">
@@ -139,7 +139,7 @@ export default function Terminal() {
             <div class="grid grid-cols-3 py-1 text-[#FF3B30] font-bold"><span class="text-left">64,240.00</span><span>1.250</span><span>12.500</span></div>
             <div class="grid grid-cols-3 py-1 text-[#FF3B30] font-bold"><span class="text-left">64,238.50</span><span>0.500</span><span>11.250</span></div>
             <div class="py-2 border-y border-gray-200 flex justify-between items-center px-2 bg-gray-100 my-2">
-              <span class="text-sm font-bold text-[#00FF41]">64,231.00</span>
+              <span class="text-sm font-bold text-[#2fa84f]">64,231.00</span>
               <span class="text-[10px] text-gray-500">SPREAD: 1.50</span>
             </div>
             <div class="grid grid-cols-3 py-1 text-[#008800] font-bold"><span class="text-left">64,231.00</span><span>1.100</span><span>1.100</span></div>

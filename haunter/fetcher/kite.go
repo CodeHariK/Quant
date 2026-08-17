@@ -76,22 +76,22 @@ func FetchKitePortfolio() (*KitePortfolioReport, error) {
 	holdings, err := kc.GetHoldings()
 	if err != nil {
 		log.Printf("⚠️ Failed to fetch Kite holdings: %v\n", err)
-	} else {
-		for _, h := range holdings {
-			report.Holdings = append(report.Holdings, KitePortfolioHolding{
-				Tradingsymbol:   h.Tradingsymbol,
-				Exchange:        h.Exchange,
-				InstrumentToken: h.InstrumentToken,
-				Quantity:        h.Quantity,
-				AveragePrice:    h.AveragePrice,
-				LastPrice:       h.LastPrice,
-				ClosePrice:      h.ClosePrice,
-				PNL:             h.PnL,
-				DayChange:       h.DayChange,
-				DayChangePerc:   h.DayChangePercentage,
-				AuthorizedDate:  h.AuthorisedDate.Time.Format("2006-01-02"),
-			})
-		}
+		return nil, fmt.Errorf("Zerodha session expired or invalid: %w", err)
+	}
+	for _, h := range holdings {
+		report.Holdings = append(report.Holdings, KitePortfolioHolding{
+			Tradingsymbol:   h.Tradingsymbol,
+			Exchange:        h.Exchange,
+			InstrumentToken: h.InstrumentToken,
+			Quantity:        h.Quantity,
+			AveragePrice:    h.AveragePrice,
+			LastPrice:       h.LastPrice,
+			ClosePrice:      h.ClosePrice,
+			PNL:             h.PnL,
+			DayChange:       h.DayChange,
+			DayChangePerc:   h.DayChangePercentage,
+			AuthorizedDate:  h.AuthorisedDate.Time.Format("2006-01-02"),
+		})
 	}
 
 	// 2. Fetch Net Positions
@@ -127,12 +127,30 @@ func FetchKitePortfolio() (*KitePortfolioReport, error) {
 				Transaction:    t.TransactionType,
 				Quantity:       t.Quantity,
 				AveragePrice:   t.AveragePrice,
-				TradeTimestamp: t.FillTimestamp.Time,
 			})
 		}
 	}
 
+	// Persist fresh portfolio report to BoltDB
+	if st := store.GetStore(); st != nil {
+		_ = st.SaveKitePortfolio(report)
+	}
+
 	return report, nil
+}
+
+// GetCachedKitePortfolio loads cached Zerodha portfolio report from BoltDB
+func GetCachedKitePortfolio() (*KitePortfolioReport, bool) {
+	st := store.GetStore()
+	if st == nil {
+		return nil, false
+	}
+
+	var report KitePortfolioReport
+	if found := st.GetKitePortfolio(&report); found {
+		return &report, true
+	}
+	return nil, false
 }
 
 // GenerateKiteSession exchanges request_token for access_token and saves to BoltDB

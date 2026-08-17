@@ -74,8 +74,9 @@ export interface KitePortfolioReport {
   fetchedAt: string;
 }
 
-export async function fetchKitePortfolio(): Promise<KitePortfolioReport> {
-  const response = await fetch(`${API_BASE_URL}/api/kite/portfolio`);
+export async function fetchKitePortfolio(force: boolean = false): Promise<KitePortfolioReport> {
+  const url = `${API_BASE_URL}/api/kite/portfolio${force ? '?force=true' : ''}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
     throw new Error(errData.error || `Zerodha KiteConnect session inactive`);

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"haunter/api"
+	"haunter/config"
 	"haunter/fetcher"
 	"haunter/store"
 )
@@ -34,7 +35,7 @@ func main() {
 	hub := api.NewSSEHub()
 	go hub.Run()
 
-	// 1. Full 5-Year Valuation Report REST endpoint on /api/valuation-report?symbol=RELIANCE.NS&force=false
+	// 1. Full 5-Year Valuation Report REST endpoint on /api/valuation-report?symbol=gld&force=false
 	http.HandleFunc("/api/valuation-report", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
@@ -131,8 +132,26 @@ func main() {
 			return
 		}
 
+		force := r.URL.Query().Get("force") == "true"
+
+		// If force is false, return cached BoltDB portfolio first for fast UI load
+		if !force {
+			if cached, found := fetcher.GetCachedKitePortfolio(); found {
+				log.Printf("📦 [CACHE_HIT] Loaded Zerodha Portfolio from BoltDB (Fetched at %s)\n", cached.FetchedAt.Format(time.RFC3339))
+				json.NewEncoder(w).Encode(cached)
+				return
+			}
+		}
+
+		// Fetch fresh portfolio from Zerodha Kite API
 		report, err := fetcher.FetchKitePortfolio()
 		if err != nil {
+			// If Zerodha fails or rate-limits, fall back to cached portfolio if available
+			if cached, found := fetcher.GetCachedKitePortfolio(); found {
+				log.Printf("⚠️ Zerodha API error (%v). Falling back to cached BoltDB portfolio.\n", err)
+				json.NewEncoder(w).Encode(cached)
+				return
+			}
 			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusUnauthorized)
 			return
 		}
@@ -360,14 +379,14 @@ func main() {
 	// Background simulation ticker for live UI testing
 	go runBackgroundSimulation(hub)
 
-	fmt.Println("📡 HTTP Server listening on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Printf("📡 HTTP Server listening on http://localhost%s\n", config.DefaultServerPort)
+	if err := http.ListenAndServe(config.DefaultServerPort, nil); err != nil {
 		fmt.Printf("❌ HTTP Server Error: %v\n", err)
 	}
 }
 
 func runBackgroundSimulation(hub *api.SSEHub) {
-	symbols := []string{"^NSEMDCP50", "USDINR=X", "SMH", "CL=F"}
+	symbols := config.DefaultWatchlist
 	_ = symbols
 	_ = rand.Intn
 }
