@@ -71,7 +71,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
   });
 
   return (
-    <Card containerClass="border border-black bg-white p-6 mb-8">
+    <Card containerClass="border p-6 mb-8">
       {/* Header with Statement Title and Table/Chart Toggle */}
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-gray-200 pb-4">
         <div>
@@ -162,9 +162,8 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
                         {/* Bar */}
                         <div
                           style={{ height: `${heightPerc}%` }}
-                          class={`w-full max-w-[48px] border border-black transition-all ${
-                            isPositive ? 'bg-terminal-green/80 hover:bg-terminal-green' : 'bg-critical-red/80 hover:bg-critical-red'
-                          }`}
+                          class={`w-full max-w-[48px] border border-black transition-all ${isPositive ? 'bg-terminal-green/80 hover:bg-terminal-green' : 'bg-critical-red/80 hover:bg-critical-red'
+                            }`}
                         ></div>
 
                         {/* Year Label */}

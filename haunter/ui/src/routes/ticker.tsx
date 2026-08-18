@@ -4,6 +4,7 @@ import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../components/PageLayout';
 import { Card } from '../components/Card';
 import { Modal } from '../components/Modal';
+import { WatchlistModal } from '../components/WatchlistModal';
 import { Chip, ChipColor } from '../components/Chip';
 import { Table } from '../components/Table';
 import { Input, FilledButton, OutlineButton } from '../components/FormControls';
@@ -97,7 +98,7 @@ export default function Ticker() {
 
   const stockInfo = () => fullReport()?.rawInfo || (fullReport() as any)?.info;
 
-  const [activeModal, setActiveModal] = createSignal<'sharpe' | 'sortino' | 'volatility' | 'drawdown' | 'dcf' | null>(null);
+  const [activeModal, setActiveModal] = createSignal<'sharpe' | 'sortino' | 'volatility' | 'drawdown' | 'dcf' | 'watchlist' | null>(null);
 
   const getSharpeGrade = (val: number): { grade: string; color: ChipColor } => {
     if (val >= 3.0) return { grade: 'EXCELLENT', color: 'accent' };
@@ -133,44 +134,26 @@ export default function Ticker() {
     <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full">
       <Title>{`${selectedSymbol()} - Stock Report & Financial Statement Analysis`}</Title>
 
-      {/* Watchlist Management & Asset Selector Bar */}
-      <div class="border border-black bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <Text variant="label">WATCHLIST (BOLTDB):</Text>
-          <div class="flex flex-wrap items-center gap-2">
-            {watchlist().map((sym) => (
-              <Chip
-                label={sym}
-                color={selectedSymbol() === sym ? 'accent' : 'neutral'}
-                onClick={() => setSelectedSymbol(sym)}
-                onRemove={(e) => handleRemoveSymbol(sym, e)}
-                class={selectedSymbol() === sym ? 'border-2 font-bold' : ''}
-              />
-            ))}
-          </div>
+      {/* Top Quick Actions Bar with Watchlist Trigger */}
+      <div class="mb-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <Text variant="label">ACTIVE ASSET:</Text>
+          <Chip label={selectedSymbol()} color="accent" class="font-bold border-2" />
         </div>
-
-        {/* Add Symbol Form */}
-        <form onSubmit={handleAddSymbol} class="flex items-center gap-2 w-full md:w-auto">
-          <Input
-            type="text"
-            placeholder="ADD TICKER (e.g. GLD)"
-            value={newSymbolInput()}
-            onInput={(e) => setNewSymbolInput(e.currentTarget.value)}
-            class="w-full md:w-64"
-          />
-          <FilledButton type="submit">
-            + ADD
-          </FilledButton>
-        </form>
+        <OutlineButton
+          onClick={() => setActiveModal('watchlist')}
+          class="flex items-center gap-2 text-xs font-bold font-mono"
+        >
+          ⭐ WATCHLIST ({watchlist().length})
+        </OutlineButton>
       </div>
 
       {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading valuation report from BoltDB cache...</Text>}
       {error() && <Text status="error" class="mb-4 block">{error()}</Text>}
 
       {/* Model & Stock Header */}
-      <header class="border border-black bg-white p-6 relative mb-8">
-        <div class="absolute top-0 left-0 w-full h-1 bg-black"></div>
+      <header class="border p-6 relative mb-8">
+        <div class="absolute top-0 left-0 w-full h-1 bg-green-600"></div>
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <div class="flex items-center gap-3 mb-2 text-xs">
@@ -346,7 +329,7 @@ export default function Ticker() {
       {fullReport() && (
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {/* Sharpe Ratio Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
 
             <div>
               <div class="flex justify-between items-start mb-2">
@@ -378,7 +361,7 @@ export default function Ticker() {
           </Card>
 
           {/* Sortino Ratio Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">SORTINO RATIO (5Y)</Text>
@@ -411,7 +394,7 @@ export default function Ticker() {
           </Card>
 
           {/* Annual Volatility Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">ANNUAL VOLATILITY</Text>
@@ -437,7 +420,7 @@ export default function Ticker() {
           </Card>
 
           {/* Max 5Y Drawdown Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">MAX 5Y DRAWDOWN</Text>
@@ -468,7 +451,7 @@ export default function Ticker() {
       {fullReport() && (
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {/* PEG Ratio Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">PEG RATIO (P/E to Growth)</Text>
@@ -480,7 +463,7 @@ export default function Ticker() {
                 </button>
               </div>
               <Text
-                variant={(fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0 ? 'success' : (fullReport()?.pegRatio ?? 0) <= 2.0 ? 'accent' : 'error'}
+                status={(fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0 ? 'success' : (fullReport()?.pegRatio ?? 0) <= 2.0 ? 'accent' : 'error'}
                 class="text-2xl font-bold block"
               >
                 {(fullReport()?.pegRatio ?? 0) > 0 ? (fullReport()?.pegRatio ?? 0).toFixed(2) : 'N/A'}
@@ -509,7 +492,7 @@ export default function Ticker() {
           </Card>
 
           {/* Earnings Yield Card */}
-          <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+          <Card containerClass="border p-4 relative flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">EARNINGS YIELD %</Text>
@@ -669,6 +652,23 @@ export default function Ticker() {
         </div>
       </Modal>
 
+      {/* Standalone Dark-Mode Watchlist Modal */}
+      <WatchlistModal
+        isOpen={activeModal() === 'watchlist'}
+        onClose={() => setActiveModal(null)}
+        watchlist={watchlist}
+        selectedSymbol={selectedSymbol}
+        onSelectSymbol={(sym) => setSelectedSymbol(sym)}
+        onAddSymbol={async (sym) => {
+          const list = await addToWatchlist(sym);
+          setWatchlist(list);
+          setSelectedSymbol(sym);
+        }}
+        onRemoveSymbol={async (sym, e) => {
+          await handleRemoveSymbol(sym, e);
+        }}
+      />
+
       {/* Categorized & Grouped Financial Statistics */}
       {Boolean(stockInfo()) && (() => {
         const info = stockInfo() || {};
@@ -757,7 +757,7 @@ export default function Ticker() {
 
 
               return (
-                <section class="border border-black bg-white overflow-hidden">
+                <section class="border overflow-hidden">
                   <div class="border-b border-black px-4 py-3 bg-gray-50 flex justify-between items-center text-xs font-bold uppercase tracking-wide">
                     <Text variant="h3" class="text-xs">{cat.title}</Text>
                     <Text variant="muted">{items.length} METRICS</Text>
@@ -799,7 +799,7 @@ export default function Ticker() {
 
       {/* Raw Complete JSON Payload Inspector */}
       {fullReport() && (
-        <section class="border border-black bg-white p-4 mb-8 overflow-hidden">
+        <section class="border  p-4 mb-8 overflow-hidden">
           <div class="font-bold text-xs uppercase mb-2 border-b border-gray-200 pb-2 flex justify-between items-center">
             <Text variant="label">FULL 5-YEAR UNTRUNCATED JSON PAYLOAD ({selectedSymbol()})</Text>
             <Text variant="muted">Fetched At: {fullReport()?.fetchedAt}</Text>
@@ -811,7 +811,7 @@ export default function Ticker() {
       )}
 
       {/* Trade History Table */}
-      <section class="border border-black bg-white overflow-hidden">
+      <section class="border  overflow-hidden">
         <div class="border-b border-gray-200 p-3 bg-gray-50 flex justify-between items-center text-xs">
           <Text variant="h3" class="text-xs">RECENT EXECUTION LOG</Text>
           <Text variant="muted">Showing last 5 trades</Text>
@@ -830,7 +830,7 @@ export default function Ticker() {
             },
             {
               header: 'TYPE',
-              cell: (row) => <Text variant={row.type === 'LONG' ? 'success' : 'error'}>{row.type}</Text>,
+              cell: (row) => <Text status={row.type === 'LONG' ? 'success' : 'error'}>{row.type}</Text>,
               className: 'p-3',
             },
             {
@@ -856,6 +856,16 @@ export default function Ticker() {
           ]}
         />
       </section>
+
+      {/* Floating Action Button (FAB) for Quick Watchlist Access */}
+      <button
+        onClick={() => setActiveModal('watchlist')}
+        title="Open Watchlist"
+        class="fixed bottom-6 right-6 z-40 bg-black text-white dark:bg-white dark:text-black border-2 border-black dark:border-white shadow-2xl rounded-full p-4 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer font-mono font-bold text-xs"
+      >
+        <span class="text-base">⭐</span>
+        <span class="hidden md:inline">WATCHLIST ({watchlist().length})</span>
+      </button>
     </PageLayout>
   );
 }
