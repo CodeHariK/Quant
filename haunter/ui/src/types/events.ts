@@ -24,6 +24,8 @@ export interface FullValuationReport {
   intrinsicValue?: number;
   currentPrice?: number;
   marginOfSafety?: number;
+  weightedTrendPrice?: number;
+  priceToTrendDeviation?: number;
   valuationStatus?: string;
   buySellZone?: string;
   relativePE?: number;

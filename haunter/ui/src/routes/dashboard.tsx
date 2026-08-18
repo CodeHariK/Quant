@@ -30,9 +30,19 @@ export default function Dashboard() {
         setKiteAuth(false);
         setKiteReport(null);
         setLoading(false);
-        setAuthError(err.message || 'Zerodha session expired. Please log in with Zerodha again.');
-        // Auto-purge stale BoltDB session
+        setAuthError(err.message || 'Zerodha session expired. Auto-logging out and redirecting to Zerodha...');
+
+        // 1. Auto-purge stale BoltDB session
         deleteKiteSession().catch(() => { });
+
+        // 2. Auto-redirect to Zerodha Login if API Key is saved in localStorage
+        const savedKey = localStorage.getItem('haunter_kite_api_key');
+        if (savedKey) {
+          const zerodhaLoginUrl = `https://kite.zerodha.com/connect/login?v=3&api_key=${encodeURIComponent(savedKey)}`;
+          setTimeout(() => {
+            window.location.href = zerodhaLoginUrl;
+          }, 1500);
+        }
       });
   };
 

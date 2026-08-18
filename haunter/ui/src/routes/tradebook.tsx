@@ -152,8 +152,8 @@ export default function Tradebook() {
         </div>
       </header>
 
-      {statusMsg() && <Text variant="success" class="block p-3 border border-green-500 bg-green-50">{statusMsg()}</Text>}
-      {errorMsg() && <Text variant="error" class="block p-3 border border-red-500 bg-red-50">{errorMsg()}</Text>}
+      {statusMsg() && <Text status="success" class="block p-3 border border-green-500 bg-green-50">{statusMsg()}</Text>}
+      {errorMsg() && <Text status="error" class="block p-3 border border-red-500 bg-red-50">{errorMsg()}</Text>}
 
       {/* Year Filter Tabs */}
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-black pb-4">

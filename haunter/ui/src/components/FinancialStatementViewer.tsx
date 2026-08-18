@@ -52,7 +52,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
         const val = row[p];
         const isNeg = val !== undefined && val < 0;
         return (
-          <Text variant={isNeg ? 'error' : 'success'}>
+          <Text status={isNeg ? 'error' : 'success'}>
             {formatNumber(val)}
           </Text>
         );

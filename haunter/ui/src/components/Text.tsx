@@ -8,13 +8,18 @@ export type TextVariant =
   | 'body-sm'
   | 'label'
   | 'code'
-  | 'muted'
+  | 'muted';
+
+export type TextStatus =
   | 'success'
   | 'error'
+  | 'warning'
+  | 'info'
   | 'accent';
 
 export interface TextProps extends ComponentProps<'span'> {
   variant?: TextVariant;
+  status?: TextStatus;
   as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'label';
   class?: string;
   children: JSX.Element;
@@ -38,35 +43,39 @@ export function Text(props: TextProps) {
       case 'code':
         return 'font-mono text-xs';
       case 'muted':
-        return 'text-xs text-gray-500 font-mono';
-      case 'success':
-        return 'text-xs font-mono font-bold text-terminal-green';
-      case 'error':
-        return 'text-xs font-mono font-bold text-critical-red';
-      case 'accent':
-        return 'text-xs font-mono font-bold text-blue-600 dark:text-blue-400';
+        return 'text-xs text-gray-500 dark:text-gray-400 font-mono';
       default:
         return 'text-sm font-mono';
     }
   };
 
+  const getStatusClasses = (status?: TextStatus) => {
+    switch (status) {
+      case 'success':
+        return 'text-terminal-green font-bold';
+      case 'error':
+        return 'text-critical-red font-bold';
+      case 'warning':
+        return 'text-orange-500 font-bold';
+      case 'info':
+        return 'text-blue-500 font-bold';
+      case 'accent':
+        return 'text-blue-600 dark:text-blue-400 font-bold';
+      default:
+        return '';
+    }
+  };
+
   const tag = props.as || (props.variant === 'h1' ? 'h1' : props.variant === 'h2' ? 'h2' : props.variant === 'h3' ? 'h3' : 'span');
-  const className = `${getVariantClasses(props.variant)} ${props.class || ''}`;
+  const className = `${getVariantClasses(props.variant)} ${getStatusClasses(props.status)} ${props.class || ''}`.trim();
 
   if (tag === 'h1') return <h1 {...props} class={className}>{props.children}</h1>;
   if (tag === 'h2') return <h2 {...props} class={className}>{props.children}</h2>;
   if (tag === 'h3') return <h3 {...props} class={className}>{props.children}</h3>;
   if (tag === 'h4') return <h4 {...props} class={className}>{props.children}</h4>;
   if (tag === 'p') return <p {...props} class={className}>{props.children}</p>;
-  if (tag === 'div') return <div {...props} class={className}>{props.children}</div>;
   if (tag === 'label') return <label {...props} class={className}>{props.children}</label>;
+  if (tag === 'div') return <div {...props} class={className}>{props.children}</div>;
 
-  return (
-    <span
-      {...props}
-      class={className}
-    >
-      {props.children}
-    </span>
-  );
+  return <span {...props} class={className}>{props.children}</span>;
 }

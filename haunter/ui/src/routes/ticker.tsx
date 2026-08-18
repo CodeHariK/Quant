@@ -166,7 +166,7 @@ export default function Ticker() {
       </div>
 
       {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading valuation report from BoltDB cache...</Text>}
-      {error() && <Text variant="error" class="mb-4 block">{error()}</Text>}
+      {error() && <Text status="error" class="mb-4 block">{error()}</Text>}
 
       {/* Model & Stock Header */}
       <header class="border border-black bg-white p-6 relative mb-8">
@@ -197,97 +197,98 @@ export default function Ticker() {
 
       {/* 🎯 INTRINSIC VALUATION & BUY/SELL ZONE RADAR HERO SECTION */}
       {fullReport() && (
-        <div class="border-2 border-black bg-white p-6 mb-8 relative">
-          <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-3">
+        <Card>
+          <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-zinc-800 pb-3">
             <div>
-              <Text variant="h2" class="text-lg">🎯 QUANTITATIVE TREND & PRICE DEVIATION RADAR</Text>
-              <Text variant="muted" class="block text-xs mt-1">1-Year Recency-Weighted Trend Price Baseline & Trend Deviation Radar</Text>
+              <Text variant="h2">🎯 QUANTITATIVE TREND & PRICE DEVIATION RADAR</Text>
+              <Text variant="muted">1-Year Recency-Weighted Trend Price Baseline & Trend Deviation Radar</Text>
             </div>
-            <button
+            <OutlineButton
               onClick={() => setActiveModal('dcf')}
-              class="text-xs font-mono font-bold border border-black px-3 py-1 bg-gray-100 hover:bg-black hover:text-white transition-colors"
+              class="text-xs font-mono font-bold"
             >
               ℹ️ HOW TREND BASELINE IS CALCULATED
-            </button>
+            </OutlineButton>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
             {/* Valuation Status Badge */}
-            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900 text-center">
-              <Text variant="label" class="block mb-1">TREND STATUS</Text>
+            <Card>
+              <Text variant="label">TREND STATUS</Text>
               <Chip
                 label={fullReport()?.valuationStatus?.replace('_', ' ') || 'EVALUATING'}
                 color={
                   (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 10
                     ? 'success'
                     : (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) <= -10
-                    ? 'error'
-                    : 'info'
+                      ? 'error'
+                      : 'info'
                 }
-                class="text-sm py-1 px-3 font-bold"
+                class="text-sm py-1 px-3 font-bold border-none"
               />
-              <Text variant="muted" class="block mt-2 text-[10px]">
+              <Text variant="muted">
                 {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0
                   ? `${(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Below Trend Baseline`
                   : `${Math.abs(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}% Above Trend Baseline`}
               </Text>
-            </div>
+            </Card>
 
             {/* Fair Value vs Market Price */}
-            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
-              <Text variant="label" class="block mb-1">WEIGHTED TREND BASELINE</Text>
-              <Text variant="h1" class="text-2xl text-terminal-green font-bold block">
+            <Card>
+              <Text variant="label">WEIGHTED TREND BASELINE</Text>
+              <Text variant="h1" class="text-emerald-600 dark:text-emerald-400 font-bold block">
                 {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
                 {(fullReport()?.weightedTrendPrice ?? fullReport()?.intrinsicValue ?? 0).toFixed(2)}
               </Text>
-              <Text variant="muted" class="block mt-1 text-[11px]">
-                Current Price: <span class="font-bold text-black dark:text-white">
-                  {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
-                  {(fullReport()?.currentPrice ?? 0).toFixed(2)}
-                </span>
+              <Text variant="muted">
+                Current Price:
+                {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                {(fullReport()?.currentPrice ?? 0).toFixed(2)}
               </Text>
-            </div>
+            </Card>
 
             {/* NEXT MONTH PRICE FORECAST */}
-            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
-              <Text variant="label" class="block mb-1">
+            <Card>
+              <Text variant="label">
                 NEXT MONTH FORECAST 🔮 ({(fullReport()?.monthlyGrowthPerc ?? 0) >= 0 ? '+' : ''}{(fullReport()?.monthlyGrowthPerc ?? 0).toFixed(2)}%)
               </Text>
-              <Text variant="h1" class="text-2xl text-blue-500 font-bold block">
+              <Text variant="h1" class="text-blue-600">
                 {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
                 {(fullReport()?.nextMonthForecast ?? 0).toFixed(2)}
               </Text>
-              <Text variant="muted" class="block mt-1 text-[10px]">
-                Range (±{(fullReport()?.monthlyVolPerc ?? 10).toFixed(1)}% Vol): <span class="font-bold text-black dark:text-white">
-                  {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
-                  {(fullReport()?.nextMonthMin ?? 0).toFixed(0)} - {(fullReport()?.nextMonthMax ?? 0).toFixed(0)}
-                </span>
+              <Text variant="muted">
+                Range (±{(fullReport()?.monthlyVolPerc ?? 10).toFixed(1)}% Vol):
+                {selectedSymbol().endsWith('.NS') || selectedSymbol().endsWith('.BO') || stockInfo()?.currency === 'INR' ? '₹' : '$'}
+                {(fullReport()?.nextMonthMin ?? 0).toFixed(0)} - {(fullReport()?.nextMonthMax ?? 0).toFixed(0)}
               </Text>
-            </div>
+            </Card>
 
             {/* Price to Trend Deviation */}
-            <div class="border border-black p-4 bg-gray-50 dark:bg-zinc-900">
-              <Text variant="label" class="block mb-1">TREND DEVIATION</Text>
+            <Card>
+              <Text variant="label">TREND DEVIATION</Text>
               <Text
-                variant={(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 5 ? 'success' : (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0 ? 'accent' : 'error'}
-                class="text-2xl font-bold block"
+                status={
+                  (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 5
+                    ? 'success'
+                    : (fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0
+                      ? 'accent' : 'error'}
               >
                 {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0) >= 0 ? '+' : ''}
                 {(fullReport()?.priceToTrendDeviation ?? fullReport()?.marginOfSafety ?? 0).toFixed(1)}%
               </Text>
-              <Text variant="muted" class="block mt-1 text-[11px]">Baseline Band: ±10.0%</Text>
-            </div>
+              <Text variant="muted">Baseline Band: ±10.0%</Text>
+            </Card>
 
             {/* Recommendation Decision */}
-            <div class="border border-black p-4 bg-black text-white text-center">
-              <Text variant="label" class="block mb-1 text-gray-300">SIGNAL</Text>
-              <Text variant="h1" class="text-xl text-[#00FF41] font-bold block tracking-wider">
+            <Card>
+              <Text variant="label">SIGNAL</Text>
+              <Text variant="h1" status='success'>
                 {fullReport()?.buySellZone?.replace('_', ' ') || 'HOLD'}
               </Text>
-              <span class="text-[10px] uppercase font-mono text-gray-400 block mt-1">Quant Momentum Signal</span>
-            </div>
+              <Text variant="muted" class="text-[10px] uppercase font-mono text-gray-400 block mt-1">Quant Momentum Signal</Text>
+            </Card>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Wall Street Analyst Consensus Recommendations Banner */}
@@ -295,49 +296,49 @@ export default function Ticker() {
         const rec = fullReport()?.recommendations as any;
         const trend = Array.isArray(rec?.trend) && rec.trend.length > 0 ? rec.trend[0] : (rec?.trend ?? rec);
         return (
-          <div class="border border-black bg-white p-4 mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3 border-b border-gray-200 pb-2">
-              <Text variant="label" class="font-bold text-xs">🏛️ WALL STREET ANALYST CONSENSUS RATINGS (CURRENT MONTH)</Text>
-              <span class="text-[10px] font-mono text-gray-500">Source: Yahoo Finance Analyst Consensus</span>
+          <Card>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3">
+              <Text variant="label">🏛️ WALL STREET ANALYST CONSENSUS RATINGS (CURRENT MONTH)</Text>
+              <Text variant="muted">Source: Yahoo Finance Analyst Consensus</Text>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <div class="border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center">
-                <Text variant="label" class="text-[10px] text-emerald-800 dark:text-emerald-300 block mb-1">STRONG BUY</Text>
-                <Text variant="h1" class="text-xl text-emerald-600 font-bold">
+              <Card>
+                <Text variant="label" class="text-emerald-500">STRONG BUY</Text>
+                <Text variant="h1" class="text-emerald-600">
                   {trend?.strongBuy ?? trend?.StrongBuy ?? 0}
                 </Text>
-              </div>
+              </Card>
 
-              <div class="border border-green-300 bg-green-50 dark:bg-green-950/20 p-3 text-center">
-                <Text variant="label" class="text-[10px] text-green-800 dark:text-green-300 block mb-1">BUY</Text>
-                <Text variant="h1" class="text-xl text-green-600 font-bold">
+              <Card>
+                <Text variant="label" class="text-green-500">BUY</Text>
+                <Text variant="h1" class="text-green-600">
                   {trend?.buy ?? trend?.Buy ?? 0}
                 </Text>
-              </div>
+              </Card>
 
-              <div class="border border-blue-300 bg-blue-50 dark:bg-blue-950/20 p-3 text-center">
-                <Text variant="label" class="text-[10px] text-blue-800 dark:text-blue-300 block mb-1">HOLD</Text>
-                <Text variant="h1" class="text-xl text-blue-600 font-bold">
+              <Card>
+                <Text variant="label" class="text-blue-500">HOLD</Text>
+                <Text variant="h1" class="text-blue-600">
                   {trend?.hold ?? trend?.Hold ?? 0}
                 </Text>
-              </div>
+              </Card>
 
-              <div class="border border-orange-300 bg-orange-50 dark:bg-orange-950/20 p-3 text-center">
-                <Text variant="label" class="text-[10px] text-orange-800 dark:text-orange-300 block mb-1">SELL</Text>
-                <Text variant="h1" class="text-xl text-orange-600 font-bold">
+              <Card>
+                <Text variant="label" class="text-orange-500">SELL</Text>
+                <Text variant="h1" class="text-orange-600">
                   {trend?.sell ?? trend?.Sell ?? 0}
                 </Text>
-              </div>
+              </Card>
 
-              <div class="border border-red-300 bg-red-50 dark:bg-red-950/20 p-3 text-center">
-                <Text variant="label" class="text-[10px] text-red-800 dark:text-red-300 block mb-1">STRONG SELL</Text>
-                <Text variant="h1" class="text-xl text-red-600 font-bold">
+              <Card>
+                <Text variant="label" class="text-red-500">STRONG SELL</Text>
+                <Text variant="h1" class="text-red-600">
                   {trend?.strongSell ?? trend?.StrongSell ?? 0}
                 </Text>
-              </div>
+              </Card>
             </div>
-          </div>
+          </Card>
         );
       })()}
 
@@ -346,6 +347,7 @@ export default function Ticker() {
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {/* Sharpe Ratio Card */}
           <Card containerClass="border border-black bg-white p-4 relative flex flex-col justify-between">
+
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">SHARPE RATIO (5Y)</Text>
@@ -356,15 +358,17 @@ export default function Ticker() {
                   ℹ️ FORMULA
                 </button>
               </div>
-              <Text
-                variant={(fullReport()?.sharpeRatio ?? 0) >= 1 ? 'success' : (fullReport()?.sharpeRatio ?? 0) >= 0 ? 'accent' : 'error'}
+              <Text status={
+                (fullReport()?.sharpeRatio ?? 0) >= 1
+                  ? 'success'
+                  : (fullReport()?.sharpeRatio ?? 0) >= 0 ? 'accent' : 'error'}
                 class="text-2xl font-bold block"
               >
                 {(fullReport()?.sharpeRatio ?? 0).toFixed(2)}
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
-              <Text variant="muted" class="text-[10px]">Rf: 7.0% RBI</Text>
+            <div class="mt-3 flex items-center justify-between pt-2">
+              <Text variant="muted">Rf: 7.0% RBI</Text>
               <Chip
                 label={`GRADE: ${getSharpeGrade(fullReport()?.sharpeRatio ?? 0).grade}`}
                 color={getSharpeGrade(fullReport()?.sharpeRatio ?? 0).color}
@@ -385,8 +389,10 @@ export default function Ticker() {
                   ℹ️ FORMULA
                 </button>
               </div>
-              <Text
-                variant={(fullReport()?.sortinoRatio ?? 0) >= 1.5 ? 'success' : (fullReport()?.sortinoRatio ?? 0) >= 0 ? 'accent' : 'error'}
+              <Text status={
+                (fullReport()?.sortinoRatio ?? 0) >= 1.5
+                  ? 'success'
+                  : (fullReport()?.sortinoRatio ?? 0) >= 0 ? 'accent' : 'error'}
                 class="text-2xl font-bold block"
               >
                 {!isFinite(fullReport()?.sortinoRatio ?? 0)
@@ -442,7 +448,7 @@ export default function Ticker() {
                   ℹ️ FORMULA
                 </button>
               </div>
-              <Text variant="error" class="text-2xl font-bold block">
+              <Text status="error" class="text-2xl font-bold block">
                 -{(fullReport()?.maxDrawdown ?? 0).toFixed(2)}%
               </Text>
             </div>
@@ -487,15 +493,15 @@ export default function Ticker() {
                   (fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0
                     ? 'CHEAP (< 1.0)'
                     : (fullReport()?.pegRatio ?? 0) <= 2.0 && (fullReport()?.pegRatio ?? 0) > 0
-                    ? 'FAIR (1.0 - 2.0)'
-                    : 'EXPENSIVE (> 2.0)'
+                      ? 'FAIR (1.0 - 2.0)'
+                      : 'EXPENSIVE (> 2.0)'
                 }
                 color={
                   (fullReport()?.pegRatio ?? 0) > 0 && (fullReport()?.pegRatio ?? 0) <= 1.0
                     ? 'success'
                     : (fullReport()?.pegRatio ?? 0) <= 2.0 && (fullReport()?.pegRatio ?? 0) > 0
-                    ? 'info'
-                    : 'error'
+                      ? 'info'
+                      : 'error'
                 }
                 class="text-[10px] py-0.5 px-2"
               />
@@ -664,7 +670,7 @@ export default function Ticker() {
       </Modal>
 
       {/* Categorized & Grouped Financial Statistics */}
-      {stockInfo() && (() => {
+      {Boolean(stockInfo()) && (() => {
         const info = stockInfo() || {};
 
         const ignoredKeys = new Set([
@@ -732,8 +738,8 @@ export default function Ticker() {
         const renderValue = (val: any) => {
           if (val === null || val === undefined) return <Text variant="muted">null</Text>;
           if (typeof val === 'object') return <pre class="font-mono text-xs bg-gray-100 p-2 overflow-x-auto">{JSON.stringify(val, null, 2)}</pre>;
-          if (typeof val === 'number') return <Text variant="success">{val.toLocaleString()}</Text>;
-          if (typeof val === 'boolean') return <Text variant="accent">{val ? 'TRUE' : 'FALSE'}</Text>;
+          if (typeof val === 'number') return <Text status="success">{val.toLocaleString()}</Text>;
+          if (typeof val === 'boolean') return <Text status="accent">{val ? 'TRUE' : 'FALSE'}</Text>;
           return <Text variant="code">{String(val)}</Text>;
         };
 
@@ -748,6 +754,7 @@ export default function Ticker() {
                 .filter((x): x is [string, any] => x !== null && x[1] !== undefined);
 
               if (items.length === 0) return null;
+
 
               return (
                 <section class="border border-black bg-white overflow-hidden">
@@ -838,7 +845,7 @@ export default function Ticker() {
             },
             {
               header: 'P&L',
-              cell: (row) => <Text variant="success" class="text-right block">{row.pnl}</Text>,
+              cell: (row) => <Text status="success" class="text-right block">{row.pnl}</Text>,
               align: 'right',
               className: 'p-3 text-right',
             },

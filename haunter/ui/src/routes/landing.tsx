@@ -42,12 +42,12 @@ export default function Landing() {
           <Text variant="h2">Season 1.5</Text>
         </div>
         <div class="p-8 flex flex-col items-center hover:bg-gray-50 dark:hover:bg-[#181a1a]">
-          <Text variant="label" class="mb-2">AGGREGATE RETURN</Text>
-          <Text variant="success" class="text-3xl">12.11%</Text>
+          <Text variant="label" class="mb-2">Total Yield Generated</Text>
+          <Text status="success" class="text-3xl">12.11%</Text>
         </div>
         <div class="p-8 flex flex-col items-center hover:bg-gray-50 dark:hover:bg-[#181a1a]">
-          <Text variant="label" class="mb-2">TOTAL P&amp;L GENERATED</Text>
-          <Text variant="success" class="text-3xl">$4,844</Text>
+          <Text variant="label" class="mb-2">Net Realized PnL</Text>
+          <Text status="success" class="text-3xl">$4,844</Text>
         </div>
       </section>
 

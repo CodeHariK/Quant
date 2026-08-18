@@ -146,13 +146,11 @@ func main() {
 		// Fetch fresh portfolio from Zerodha Kite API
 		report, err := fetcher.FetchKitePortfolio()
 		if err != nil {
-			// If Zerodha fails or rate-limits, fall back to cached portfolio if available
-			if cached, found := fetcher.GetCachedKitePortfolio(); found {
-				log.Printf("⚠️ Zerodha API error (%v). Falling back to cached BoltDB portfolio.\n", err)
-				json.NewEncoder(w).Encode(cached)
-				return
-			}
-			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusUnauthorized)
+			log.Printf("⚠️ Zerodha API error (%v). Session expired or invalid - auto purging session.\n", err)
+			// Automatically purge expired session from BoltDB so UI registers unauthenticated state & prompts re-login
+			_ = st.DeleteKiteSession()
+
+			http.Error(w, fmt.Sprintf(`{"error": "%v", "sessionExpired": true}`, err), http.StatusUnauthorized)
 			return
 		}
 
