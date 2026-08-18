@@ -87,7 +87,7 @@ export default function Tradebook() {
     {
       header: 'TYPE',
       cell: (r) => (
-        <Text variant={r.transactionType === 'BUY' ? 'success' : 'error'}>
+        <Text status={r.transactionType === 'BUY' ? 'success' : 'error'}>
           {r.transactionType}
         </Text>
       ),

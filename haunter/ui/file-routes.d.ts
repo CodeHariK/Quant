@@ -51,15 +51,15 @@ declare module "virtual:file-routes" {
       $$route?: undefined;
     },
     {
-      path: "/ticker";
-      page: true;
-      $component: FileRouteLazyRef<typeof import("./src/pages/ticker")>;
-      $$route?: undefined;
-    },
-    {
       path: "/tradebook";
       page: true;
       $component: FileRouteLazyRef<typeof import("./src/pages/tradebook")>;
+      $$route?: undefined;
+    },
+    {
+      path: "/ticker";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./src/pages/ticker")>;
       $$route?: undefined;
     }
   ];

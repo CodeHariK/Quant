@@ -144,31 +144,18 @@ export default function Ticker() {
     <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full">
       <Title>{`${selectedSymbol()} - Stock Report & Financial Statement Analysis`}</Title>
 
-      {/* Top Quick Actions Bar with Watchlist Trigger */}
-      <div class="mb-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <Text variant="label">ACTIVE ASSET:</Text>
-          <Chip label={selectedSymbol()} color="accent" class="font-bold border-2" />
-        </div>
-        <OutlineButton
-          onClick={() => setActiveModal('watchlist')}
-          class="flex items-center gap-2 text-xs font-bold font-mono"
-        >
-          ⭐ WATCHLIST ({watchlist().length})
-        </OutlineButton>
-      </div>
-
       {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading valuation report from BoltDB cache...</Text>}
       {error() && <Text status="error" class="mb-4 block">{error()}</Text>}
 
-      <TickerHeader 
+      <TickerHeader
         selectedSymbol={selectedSymbol}
         stockInfo={stockInfo}
+        fullReport={fullReport}
         loading={loading}
         loadStockReport={loadStockReport}
       />
 
-      <TickerTrendRadar 
+      <TickerTrendRadar
         fullReport={fullReport}
         selectedSymbol={selectedSymbol}
         stockInfo={stockInfo}
@@ -177,7 +164,7 @@ export default function Ticker() {
 
       <TickerAnalystConsensus fullReport={fullReport} />
 
-      <TickerRiskMetrics 
+      <TickerRiskMetrics
         fullReport={fullReport}
         setActiveModal={setActiveModal}
         getSharpeGrade={getSharpeGrade}
@@ -186,12 +173,12 @@ export default function Ticker() {
         getDrawdownGrade={getDrawdownGrade}
       />
 
-      <TickerValuationRatios 
+      <TickerValuationRatios
         fullReport={fullReport}
         setActiveModal={setActiveModal}
       />
 
-      <TickerFormulaModals 
+      <TickerFormulaModals
         activeModal={activeModal}
         setActiveModal={setActiveModal}
       />

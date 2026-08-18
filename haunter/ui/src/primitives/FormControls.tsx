@@ -1,18 +1,11 @@
 import type { JSX } from '@solidjs/web';
-import type { ComponentProps  } from 'solid-js';
 
 // --- Input Component ---
-export interface InputProps extends ComponentProps<'input'> {
+export type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   containerClass?: string;
   error?: string;
-  class?: string;
-  type?: string;
-  placeholder?: string;
-  value?: string | number;
-  required?: boolean;
-  onInput?: (e: InputEvent & { currentTarget: HTMLInputElement; target: HTMLInputElement }) => void;
-}
+};
 
 export function Input(props: InputProps) {
   return (
@@ -33,15 +26,10 @@ export function Input(props: InputProps) {
 }
 
 // --- FilledButton Component ---
-export interface ButtonProps extends ComponentProps<'button'> {
-  children: JSX.Element;
+export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean;
   size?: 'sm' | 'md' | 'lg';
-  class?: string;
-  disabled?: boolean;
-  type?: 'button' | 'submit' | 'reset';
-  onClick?: (e: MouseEvent) => void;
-}
+};
 
 function getButtonSizeClasses(size?: 'sm' | 'md' | 'lg') {
   switch (size) {
@@ -61,7 +49,7 @@ export function FilledButton(props: ButtonProps) {
     <button
       {...props}
       disabled={props.disabled || props.loading}
-      class={`bg-black text-white ${sizeClass()} font-bold border border-black hover:bg-gray-800 disabled:opacity-50 uppercase cursor-pointer transition-colors ${props.class || ''
+      class={`bg-primary text-on-primary ${sizeClass()} font-bold border border-transparent hover:opacity-80 disabled:opacity-50 uppercase cursor-pointer transition-opacity ${props.class || ''
         }`}
     >
       {props.loading ? 'LOADING...' : props.children}
@@ -76,7 +64,7 @@ export function OutlineButton(props: ButtonProps) {
     <button
       {...props}
       disabled={props.disabled || props.loading}
-      class={`bg-transparent border border-black ${sizeClass()} font-bold hover:bg-gray-100 disabled:opacity-50 uppercase cursor-pointer transition-colors ${props.class || ''
+      class={`bg-transparent border border-outline text-on-surface ${sizeClass()} font-bold hover:bg-surface-dim disabled:opacity-50 uppercase cursor-pointer transition-colors ${props.class || ''
         }`}
     >
       {props.loading ? 'LOADING...' : props.children}

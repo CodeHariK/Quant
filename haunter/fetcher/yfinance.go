@@ -23,9 +23,14 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	// 1. Check local BoltDB cache first (if not forcing refresh)
 	if !forceRefresh && st != nil {
 		if cachedReport, ok := st.GetValuationReport(symbol); ok {
-			log.Printf("📦 [CACHE_HIT] Loaded 5-Year Valuation Report for [%s] from BoltDB (Last updated %s ago)\n",
+			// Auto-refresh if cache is older than 24 hours (1 day)
+			if time.Since(cachedReport.FetchedAt) < 24*time.Hour {
+				log.Printf("📦 [CACHE_HIT] Loaded 5-Year Valuation Report for [%s] from BoltDB (Last updated %s ago)\n",
+					symbol, time.Since(cachedReport.FetchedAt).Truncate(time.Second))
+				return cachedReport, nil
+			}
+			log.Printf("⏰ [CACHE_EXPIRED] Cache for [%s] is older than 24 hours (Last updated %s ago). Auto-refreshing from Yahoo Finance...\n",
 				symbol, time.Since(cachedReport.FetchedAt).Truncate(time.Second))
-			return cachedReport, nil
 		}
 	}
 

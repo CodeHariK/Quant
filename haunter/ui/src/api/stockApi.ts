@@ -48,6 +48,9 @@ export interface KiteHolding {
   tradingsymbol: string;
   exchange: string;
   quantity: number;
+  settledQuantity?: number;
+  t1Quantity?: number;
+  dayQuantity?: number;
   averagePrice: number;
   lastPrice: number;
   closePrice: number;

@@ -87,9 +87,9 @@ export function KiteConnectBanner(props: KiteConnectBannerProps) {
               <Text variant="h3" class="text-xs">ZERODHA KITECONNECT CONNECTED (PERSISTED IN BOLTDB)</Text>
             </div>
             <div class="flex items-center gap-2">
-              <OutlineButton onClick={() => props.loadPortfolio(true)} size="sm">
-                FORCE REFRESH 🔄
-              </OutlineButton>
+              <FilledButton onClick={() => props.loadPortfolio(true)} size="sm">
+                REFRESH
+              </FilledButton>
               <OutlineButton onClick={props.handleKiteLogout} size="sm" class="border-critical-red text-critical-red">
                 LOGOUT 🚪
               </OutlineButton>

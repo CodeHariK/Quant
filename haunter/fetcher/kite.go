@@ -14,6 +14,9 @@ type KitePortfolioHolding struct {
 	Exchange        string    `json:"exchange"`
 	InstrumentToken uint32    `json:"instrumentToken"`
 	Quantity        int       `json:"quantity"`
+	SettledQuantity int       `json:"settledQuantity"`
+	T1Quantity      int       `json:"t1Quantity"`
+	DayQuantity     int       `json:"dayQuantity"`
 	AveragePrice    float64   `json:"averagePrice"`
 	LastPrice       float64   `json:"lastPrice"`
 	ClosePrice      float64   `json:"closePrice"`
@@ -73,34 +76,45 @@ func FetchKitePortfolio() (*KitePortfolioReport, error) {
 	}
 
 	// 1. Fetch Portfolio Holdings (Delivery Equities)
+	holdingsMap := make(map[string]*KitePortfolioHolding)
 	holdings, err := kc.GetHoldings()
 	if err != nil {
 		log.Printf("⚠️ Failed to fetch Kite holdings: %v\n", err)
 		return nil, fmt.Errorf("Zerodha session expired or invalid: %w", err)
 	}
 	for _, h := range holdings {
-		report.Holdings = append(report.Holdings, KitePortfolioHolding{
+		totalQty := h.Quantity + h.T1Quantity
+		pnl := (h.LastPrice - h.AveragePrice) * float64(totalQty)
+		if h.AveragePrice <= 0 {
+			pnl = h.PnL
+		}
+
+		item := &KitePortfolioHolding{
 			Tradingsymbol:   h.Tradingsymbol,
 			Exchange:        h.Exchange,
 			InstrumentToken: h.InstrumentToken,
-			Quantity:        h.Quantity,
+			Quantity:        totalQty,
+			SettledQuantity: h.Quantity,
+			T1Quantity:      h.T1Quantity,
+			DayQuantity:     0,
 			AveragePrice:    h.AveragePrice,
 			LastPrice:       h.LastPrice,
 			ClosePrice:      h.ClosePrice,
-			PNL:             h.PnL,
+			PNL:             pnl,
 			DayChange:       h.DayChange,
 			DayChangePerc:   h.DayChangePercentage,
 			AuthorizedDate:  h.AuthorisedDate.Time.Format("2006-01-02"),
-		})
+		}
+		holdingsMap[h.Tradingsymbol] = item
 	}
 
-	// 2. Fetch Net Positions
+	// 2. Fetch Net Positions and merge CNC Day Trades into Holdings
 	positions, err := kc.GetPositions()
 	if err != nil {
 		log.Printf("⚠️ Failed to fetch Kite positions: %v\n", err)
 	} else {
 		for _, p := range positions.Net {
-			report.Positions = append(report.Positions, KitePortfolioHolding{
+			posItem := KitePortfolioHolding{
 				Tradingsymbol:   p.Tradingsymbol,
 				Exchange:        p.Exchange,
 				InstrumentToken: p.InstrumentToken,
@@ -109,8 +123,47 @@ func FetchKitePortfolio() (*KitePortfolioReport, error) {
 				LastPrice:       p.LastPrice,
 				ClosePrice:      p.ClosePrice,
 				PNL:             p.PnL,
-			})
+			}
+			report.Positions = append(report.Positions, posItem)
+
+			// If CNC position (delivery order executed today) with non-zero quantity
+			if p.Product == "CNC" && p.Quantity != 0 {
+				if item, exists := holdingsMap[p.Tradingsymbol]; exists {
+					// Merge CNC day position into existing holding
+					oldTotalQty := float64(item.Quantity)
+					oldTotalCost := oldTotalQty * item.AveragePrice
+					newDayQty := float64(p.Quantity)
+					newDayCost := newDayQty * p.AveragePrice
+
+					combinedQty := item.Quantity + p.Quantity
+					item.DayQuantity = p.Quantity
+					item.Quantity = combinedQty
+					if combinedQty > 0 {
+						item.AveragePrice = (oldTotalCost + newDayCost) / float64(combinedQty)
+						item.PNL = (item.LastPrice - item.AveragePrice) * float64(combinedQty)
+					}
+				} else if p.Quantity > 0 {
+					// Brand new CNC position bought today (no prior settled holding)
+					holdingsMap[p.Tradingsymbol] = &KitePortfolioHolding{
+						Tradingsymbol:   p.Tradingsymbol,
+						Exchange:        p.Exchange,
+						InstrumentToken: p.InstrumentToken,
+						Quantity:        p.Quantity,
+						SettledQuantity: 0,
+						T1Quantity:      0,
+						DayQuantity:     p.Quantity,
+						AveragePrice:    p.AveragePrice,
+						LastPrice:       p.LastPrice,
+						ClosePrice:      p.ClosePrice,
+						PNL:             p.PnL,
+					}
+				}
+			}
 		}
+	}
+
+	for _, item := range holdingsMap {
+		report.Holdings = append(report.Holdings, *item)
 	}
 
 	// 3. Fetch Executed Trades (What was bought/sold and on what date/timestamp)

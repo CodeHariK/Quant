@@ -1,5 +1,4 @@
 import type { JSX } from '@solidjs/web';
-import type { ComponentProps  } from 'solid-js';
 
 export type TextVariant =
   | 'h1'
@@ -18,7 +17,7 @@ export type TextStatus =
   | 'info'
   | 'accent';
 
-export interface TextProps extends ComponentProps<'span'> {
+export interface TextProps extends JSX.HTMLAttributes<any> {
   variant?: TextVariant;
   status?: TextStatus;
   as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'label';
