@@ -22,7 +22,6 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@dschz/solid-lightweight-charts": "^0.4.0",
     "@solidjs/meta": "^1.0.0-next.2",
     "@solidjs/router": "^2.0.0-next.16",
     "@solidjs/web": "^2.0.0-rc.0",

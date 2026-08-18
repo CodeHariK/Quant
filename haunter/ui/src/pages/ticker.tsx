@@ -21,6 +21,7 @@ import { TickerFormulaModals } from './components/ticker/TickerFormulaModals';
 import { TickerFinancialStats } from './components/ticker/TickerFinancialStats';
 import { TickerTradeHistory } from './components/ticker/TickerTradeHistory';
 import { TickerRawInspector } from './components/ticker/TickerRawInspector';
+import { TickerPriceChart } from './components/ticker/TickerPriceChart';
 
 
 export default function Ticker() {
@@ -154,6 +155,13 @@ export default function Ticker() {
         loading={loading}
         loadStockReport={loadStockReport}
       />
+
+      {fullReport()?.history && fullReport()!.history.length > 0 && (
+        <div class="mb-8">
+          <Text variant="h2" class="mb-4 block">PRICE ACTION & VOLUME</Text>
+          <TickerPriceChart data={fullReport()!.history} />
+        </div>
+      )}
 
       <TickerTrendRadar
         fullReport={fullReport}
