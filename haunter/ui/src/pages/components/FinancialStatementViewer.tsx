@@ -1,9 +1,9 @@
 import { createSignal } from 'solid-js';
-import { Card } from './Card';
-import { Table, Column } from './Table';
-import { FilledButton, OutlineButton } from './FormControls';
-import { Text } from './Text';
-import type { FinancialStatementItem } from '../types/events';
+import { Card } from '../../primitives/Card';
+import { Table, Column } from '../../primitives/Table';
+import { FilledButton, OutlineButton } from '../../primitives/FormControls';
+import { Text } from '../../primitives/Text';
+import type { FinancialStatementItem } from '../../types/events';
 
 export interface FinancialStatementViewerProps {
   title: string;
@@ -77,7 +77,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
         <div>
           <div class="flex items-center gap-2 mb-1">
             <Text variant="h2">📑 {props.title}</Text>
-            <Text variant="muted" class="border border-gray-300 dark:border-zinc-700 px-2 py-0.5">
+            <Text variant="muted" class="border border-gray-300 px-2 py-0.5">
               {periods.length} FISCAL YEARS
             </Text>
           </div>
@@ -127,7 +127,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
             <select
               value={selectedMetric()}
               onChange={(e) => setSelectedMetric(e.currentTarget.value)}
-              class="border border-black dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2 font-code-md text-code-md uppercase max-w-md"
+              class="border border-outline-variant bg-surface-container-lowest text-on-surface p-2 font-code-md text-code-md uppercase max-w-md"
             >
               {allMetricKeys.map((m) => (
                 <option value={m}>{m}</option>
@@ -135,7 +135,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
             </select>
           </div>
 
-          <div class="border border-black dark:border-zinc-800 p-6 bg-gray-50 dark:bg-zinc-900 flex flex-col items-center">
+          <div class="border border-outline-variant p-6 bg-surface-container-low flex flex-col items-center">
             <Text variant="h3" class="text-sm mb-4">
               {selectedMetric()} 5-YEAR HISTORICAL TREND
             </Text>
@@ -146,7 +146,7 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
               const maxVal = Math.max(...metricVals.map((v) => Math.abs(v)), 1);
 
               return (
-                <div class="w-full max-w-2xl h-64 flex items-end justify-around border-b border-l border-black dark:border-zinc-700 pt-8 pb-2 px-4 gap-4">
+                <div class="w-full max-w-2xl h-64 flex items-end justify-around border-b border-l border-outline pt-8 pb-2 px-4 gap-4">
                   {periods.map((p, i) => {
                     const val = metricVals[i];
                     const heightPerc = Math.max(10, Math.min(100, (Math.abs(val) / maxVal) * 100));
@@ -155,14 +155,14 @@ export function FinancialStatementViewer(props: FinancialStatementViewerProps) {
                     return (
                       <div class="flex flex-col items-center flex-1 h-full justify-end group relative">
                         {/* Hover Tooltip */}
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] p-1.5 font-mono rounded mb-2 absolute -top-8 z-10 whitespace-nowrap">
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-inverse-surface text-inverse-on-surface text-[10px] p-1.5 font-mono rounded mb-2 absolute -top-8 z-10 whitespace-nowrap">
                           {p}: {formatNumber(val)}
                         </div>
 
                         {/* Bar */}
                         <div
                           style={{ height: `${heightPerc}%` }}
-                          class={`w-full max-w-[48px] border border-black transition-all ${isPositive ? 'bg-terminal-green/80 hover:bg-terminal-green' : 'bg-critical-red/80 hover:bg-critical-red'
+                          class={`w-full max-w-[48px] border border-outline-variant transition-all ${isPositive ? 'bg-terminal-green/80 hover:bg-terminal-green' : 'bg-critical-red/80 hover:bg-critical-red'
                             }`}
                         ></div>
 

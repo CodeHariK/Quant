@@ -1,5 +1,5 @@
 import { useLocation } from '@solidjs/router';
-import { useTheme } from '../store/themeStore';
+import { useTheme } from '../../store/themeStore';
 
 export function TopNavBar() {
   const location = useLocation();

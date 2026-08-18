@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     solid({ start: true, extensions: ['.jsx', '.tsx'] }),
-    fileRoutes({ types: true }),
+    fileRoutes({ dir: 'src/pages', types: true }),
   ],
   resolve: {
     conditions: ['solid', 'browser', 'import', 'module'],

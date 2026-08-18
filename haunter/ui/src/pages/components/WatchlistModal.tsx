@@ -1,8 +1,8 @@
 import { createSignal, Accessor } from 'solid-js';
-import { Modal } from './Modal';
-import { Input, FilledButton } from './FormControls';
-import { Chip } from './Chip';
-import { Text } from './Text';
+import { Modal } from '../../primitives/Modal';
+import { Input, FilledButton } from '../../primitives/FormControls';
+import { Chip } from '../../primitives/Chip';
+import { Text } from '../../primitives/Text';
 
 export interface WatchlistModalProps {
   isOpen: boolean;
@@ -45,9 +45,9 @@ export function WatchlistModal(props: WatchlistModalProps) {
             placeholder="ADD TICKER (e.g. GLD, RELIANCE.NS)"
             value={newInput()}
             onInput={(e) => setNewInput(e.currentTarget.value)}
-            class="w-full text-white border-zinc-700 placeholder-gray-500"
+            class="w-full text-on-surface border-outline placeholder-outline-variant"
           />
-          <FilledButton type="submit" class="bg-white text-black hover:bg-gray-200">
+          <FilledButton type="submit" class="bg-inverse-surface text-inverse-on-surface hover:opacity-80">
             + ADD
           </FilledButton>
         </form>
@@ -56,8 +56,8 @@ export function WatchlistModal(props: WatchlistModalProps) {
           <Text status="error" class="text-xs block">{errorMsg()}</Text>
         )}
 
-        <div class="border border-zinc-800 p-3 max-h-64 overflow-y-auto">
-          <Text variant="label" class="block mb-2 text-[10px] text-gray-400">SAVED WATCHLIST TICKERS:</Text>
+        <div class="border border-outline-variant p-3 max-h-64 overflow-y-auto">
+          <Text variant="label" class="block mb-2 text-[10px] text-on-surface-variant">SAVED WATCHLIST TICKERS:</Text>
           <div class="flex flex-wrap items-center gap-2">
             {props.watchlist().map((sym) => (
               <Chip
@@ -70,8 +70,8 @@ export function WatchlistModal(props: WatchlistModalProps) {
                 onRemove={(e) => props.onRemoveSymbol(sym, e)}
                 class={
                   props.selectedSymbol() === sym
-                    ? 'border-2 font-bold cursor-pointer text-white bg-blue-600 border-blue-400'
-                    : 'cursor-pointer text-gray-200 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                    ? 'border-2 font-bold cursor-pointer text-inverse-on-surface bg-inverse-surface border-inverse-surface'
+                    : 'cursor-pointer text-on-surface bg-surface border-outline-variant hover:bg-surface-container-highest'
                 }
               />
             ))}

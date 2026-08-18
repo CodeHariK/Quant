@@ -1,4 +1,5 @@
-import { JSX, ParentProps } from 'solid-js';
+import type { JSX } from '@solidjs/web';
+import { ParentProps  } from 'solid-js';
 import { Text } from './Text';
 
 export interface CardProps extends ParentProps {

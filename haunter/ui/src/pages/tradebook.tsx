@@ -1,10 +1,10 @@
 import { Title } from '@solidjs/meta';
 import { createSignal, createEffect, For } from 'solid-js';
-import { PageLayout } from '../components/PageLayout';
-import { Card } from '../components/Card';
-import { Table, Column } from '../components/Table';
-import { FilledButton, OutlineButton } from '../components/FormControls';
-import { Text } from '../components/Text';
+import { PageLayout } from '../pages/components/PageLayout';
+import { Card } from '../primitives/Card';
+import { Table, Column } from '../primitives/Table';
+import { FilledButton, OutlineButton } from '../primitives/FormControls';
+import { Text } from '../primitives/Text';
 import { uploadTradebookCSV, fetchTradebookRecords, type TradebookRecord } from '../api/stockApi';
 
 export default function Tradebook() {
@@ -127,8 +127,8 @@ export default function Tradebook() {
       <Title>Alpha Arena - Historical Tradebook Ledger</Title>
 
       {/* Header Bar */}
-      <header class="border border-black bg-white p-6 relative">
-        <div class="absolute top-0 left-0 w-full h-1 bg-black"></div>
+      <header class="border border-outline-variant bg-surface p-6 relative">
+        <div class="absolute top-0 left-0 w-full h-1 bg-on-surface"></div>
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <Text variant="h1" class="block">HISTORICAL TRADEBOOK LEDGER</Text>
@@ -156,13 +156,13 @@ export default function Tradebook() {
       {errorMsg() && <Text status="error" class="block p-3 border border-red-500 bg-red-50">{errorMsg()}</Text>}
 
       {/* Year Filter Tabs */}
-      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-black pb-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant pb-4">
         <div class="flex flex-wrap items-center gap-2">
           <Text variant="label" class="mr-2">FILTER BY YEAR:</Text>
           <OutlineButton
             size="sm"
             onClick={() => setSelectedYear('ALL')}
-            class={selectedYear() === 'ALL' ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : ''}
+            class={selectedYear() === 'ALL' ? 'bg-inverse-surface text-inverse-on-surface font-bold' : ''}
           >
             ALL YEARS ({records().length})
           </OutlineButton>
@@ -171,7 +171,7 @@ export default function Tradebook() {
               <OutlineButton
                 size="sm"
                 onClick={() => setSelectedYear(yr)}
-                class={selectedYear() === yr ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : ''}
+                class={selectedYear() === yr ? 'bg-inverse-surface text-inverse-on-surface font-bold' : ''}
               >
                 {yr}
               </OutlineButton>
@@ -185,7 +185,7 @@ export default function Tradebook() {
       </div>
 
       {/* Interactive Sortable Tradebook Table with Summary Aggregates */}
-      <Card containerClass="border border-black bg-white p-6">
+      <Card containerClass="border border-outline-variant bg-surface p-6">
         {loading() ? (
           <Text variant="muted" class="animate-pulse p-4 block text-center">Loading tradebook records from BoltDB...</Text>
         ) : records().length === 0 ? (

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-mono: 'JetBrains Mono', monospace;
@@ -121,9 +121,12 @@
   --color-on-background: #f1f1f1;
   --color-surface-variant: #282a2a;
 
-  --color-muted-gray: #a0a0a0;
-  --color-canvas-off-white: #121414;
   --color-border-subtle: #2d3030;
+}
+
+.dark body {
+  background-color: #090a0a;
+  color: #f1f1f1;
 }
 
 .material-symbols-outlined {

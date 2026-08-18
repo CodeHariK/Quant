@@ -1,4 +1,5 @@
-import { JSX, createSignal, createMemo } from 'solid-js';
+import type { JSX } from '@solidjs/web';
+import { createSignal, createMemo  } from 'solid-js';
 import { Text } from './Text';
 
 export type AggregateType = 'sum' | 'avg' | 'count' | ((data: any[]) => JSX.Element);
@@ -117,9 +118,9 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
   const hasSummaryRow = createMemo(() => props.showSummary || props.columns.some((c) => c.aggregate !== undefined));
 
   return (
-    <div class={props.containerClass || "w-full overflow-x-auto border border-gray-200"}>
+    <div class={props.containerClass || "w-full overflow-x-auto border border-outline-variant"}>
       <table class={props.tableClass || "w-full text-left border-collapse text-xs whitespace-nowrap"}>
-        <thead class={props.headerClass || "uppercase border-b border-gray-200 font-bold"}>
+        <thead class={props.headerClass || "uppercase border-b border-outline-variant font-bold"}>
           <tr>
             {props.columns.map((col) => {
               const key = String(col.accessor || col.header);
@@ -129,7 +130,7 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
               return (
                 <th
                   onClick={() => handleHeaderClick(col)}
-                  class={`${col.headerClassName || 'p-3 border-r border-black'} ${isSortable ? 'cursor-pointer select-none hover:bg-red-500 transition-colors' : ''
+                  class={`${col.headerClassName || 'p-3 border-r border-outline-variant'} ${isSortable ? 'cursor-pointer select-none hover:bg-surface-container-highest transition-colors' : ''
                     } ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'}`}
                 >
                   <div class={`inline-flex items-center gap-1.5 ${col.align === 'right' ? 'justify-end w-full' : col.align === 'center' ? 'justify-center w-full' : ''}`}>
@@ -145,12 +146,12 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
             })}
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-outline-variant">
           {sortedData().map((row, idx) => (
-            <tr class={props.rowClass ? props.rowClass(row, idx) : "border-b border-black hover:bg-red-500 transition-colors"}>
+            <tr class={props.rowClass ? props.rowClass(row, idx) : "border-b border-outline-variant hover:bg-surface-container-high transition-colors"}>
               {props.columns.map((col) => (
                 <td
-                  class={`${col.className || 'p-3 border-r border-black'} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
+                  class={`${col.className || 'p-3 border-r border-outline-variant'} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
                     }`}
                 >
                   {col.cell ? (
@@ -166,11 +167,11 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
           ))}
         </tbody>
         {hasSummaryRow() && (
-          <tfoot class="bg-gray-100 border-t-2 border-black font-bold uppercase">
+          <tfoot class="bg-surface-container-low border-t-2 border-outline-variant font-bold uppercase">
             <tr>
               {props.columns.map((col, idx) => (
                 <td
-                  class={`${col.className || 'p-3 border-r border-black'} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
+                  class={`${col.className || 'p-3 border-r border-outline-variant'} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
                     }`}
                 >
                   {renderAggregateCell(col, idx)}

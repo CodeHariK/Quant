@@ -1,4 +1,5 @@
-import { JSX, ParentProps } from 'solid-js';
+import type { JSX } from '@solidjs/web';
+import { ParentProps  } from 'solid-js';
 import { TopNavBar } from './TopNavBar';
 import { SideNavBar } from './SideNavBar';
 import { Footer } from './Footer';

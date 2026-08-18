@@ -1,4 +1,5 @@
-import type { JSX, ComponentProps } from 'solid-js';
+import type { JSX } from '@solidjs/web';
+import type { ComponentProps  } from 'solid-js';
 
 export type TextVariant =
   | 'h1'

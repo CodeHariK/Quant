@@ -1,4 +1,4 @@
-import { JSX } from 'solid-js';
+import type { JSX } from '@solidjs/web';
 import { Text } from './Text';
 
 export type ChipColor = 'success' | 'error' | 'warning' | 'info' | 'neutral' | 'accent';
@@ -18,7 +18,7 @@ export function Chip(props: ChipProps) {
     warning: 'bg-amber-500',
     info: 'bg-blue-500',
     accent: 'bg-emerald-500',
-    neutral: 'bg-gray-400 dark:bg-gray-500',
+    neutral: 'bg-outline',
   };
 
   const currentDotClass = () => dotColorClasses[props.color || 'neutral'];
@@ -26,7 +26,7 @@ export function Chip(props: ChipProps) {
   return (
     <div
       onClick={props.onClick}
-      class={`px-2.5 py-0.5 uppercase border border-black dark:border-zinc-700 bg-transparent inline-flex items-center gap-1.5 transition-colors font-mono ${props.onClick ? 'cursor-pointer' : ''
+      class={`px-2.5 py-0.5 uppercase border border-outline-variant bg-transparent inline-flex items-center gap-1.5 transition-colors font-mono ${props.onClick ? 'cursor-pointer' : ''
         } ${props.class || ''}`}
     >
       <span class={`w-2 h-2 rounded-full inline-block ${currentDotClass()}`} />

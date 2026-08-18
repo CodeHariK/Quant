@@ -1,5 +1,5 @@
-import { Table, Column } from './Table';
-import { Text } from './Text';
+import { Table, Column } from '../../primitives/Table';
+import { Text } from '../../primitives/Text';
 
 export interface LeaderboardRow {
   rank: number;

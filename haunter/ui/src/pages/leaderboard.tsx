@@ -1,7 +1,7 @@
 import { Title } from '@solidjs/meta';
-import { PageLayout } from '../components/PageLayout';
-import { LeaderboardTable } from '../components/LeaderboardTable';
-import { Text } from '../components/Text';
+import { PageLayout } from '../pages/components/PageLayout';
+import { LeaderboardTable } from '../pages/components/LeaderboardTable';
+import { Text } from '../primitives/Text';
 
 export default function Leaderboard() {
   return (
@@ -12,8 +12,8 @@ export default function Leaderboard() {
         <Text variant="h1" class="text-5xl tracking-tighter mb-6 block">LEADERBOARD</Text>
         <div class="flex items-center gap-6 text-xs">
           <div class="flex items-center gap-2">
-            <Text variant="label" class="text-black dark:text-white">COMPETITION:</Text>
-            <select class="border border-black bg-transparent py-1 px-2 cursor-pointer font-mono font-bold">
+            <Text variant="label" class="text-on-surface">COMPETITION:</Text>
+            <select class="border border-outline-variant bg-transparent text-on-surface py-1 px-2 cursor-pointer font-mono font-bold">
               <option>Aggregate Index</option>
               <option>Alpha Sector</option>
               <option>Beta Quadrant</option>
@@ -24,8 +24,8 @@ export default function Leaderboard() {
 
       {/* Tabs */}
       <div class="flex gap-0 mb-4 text-xs uppercase tracking-widest font-bold">
-        <button class="bg-black text-white py-2 px-4 border border-black">OVERALL STATS</button>
-        <button class="bg-transparent text-black py-2 px-4 border border-black border-l-0 hover:bg-gray-200 transition-colors">
+        <button class="bg-inverse-surface text-inverse-on-surface py-2 px-4 border border-outline-variant">OVERALL STATS</button>
+        <button class="bg-transparent text-on-surface py-2 px-4 border border-outline-variant border-l-0 hover:bg-surface-container-highest transition-colors">
           ADVANCED ANALYTICS
         </button>
       </div>
