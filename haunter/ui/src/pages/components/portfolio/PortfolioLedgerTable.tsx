@@ -70,6 +70,19 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       },
       sortValue: (row) => calculateReturn(row.currentValue, row.totalInvested),
     },
+    {
+      header: 'Period Return',
+      align: 'right',
+      cell: (row) => {
+        const isPositive = row.lumpsumReturn >= 0;
+        return (
+          <span class={`font-medium ${isPositive ? 'text-secondary-container' : 'text-critical-red'}`}>
+            {isPositive ? '+' : ''}{row.lumpsumReturn.toFixed(2)}%
+          </span>
+        );
+      },
+      sortValue: (row) => row.lumpsumReturn,
+    },
   ];
 
   return (

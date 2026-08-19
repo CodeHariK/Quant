@@ -17,7 +17,7 @@ export function TickerTrendRadar(props: TickerTrendRadarProps) {
     <> {/* 🎯 INTRINSIC VALUATION & BUY/SELL ZONE RADAR HERO SECTION */}
       {props.fullReport() && (
         <Card>
-          <div class="flex justify-between items-center mb-4 border-b border-outline-variant dark:border-zinc-800 pb-3">
+          <div class="flex justify-between items-center mb-4 pb-3">
             <div>
               <Text variant="h2">🎯 QUANTITATIVE TREND & PRICE DEVIATION RADAR</Text>
               <Text variant="muted">1-Year Recency-Weighted Trend Price Baseline & Trend Deviation Radar</Text>
@@ -26,7 +26,7 @@ export function TickerTrendRadar(props: TickerTrendRadarProps) {
               onClick={() => props.setActiveModal('dcf')}
               class="text-xs font-mono font-bold"
             >
-              ℹ️ HOW TREND BASELINE IS CALCULATED
+              HOW TREND BASELINE IS CALCULATED
             </OutlineButton>
           </div>
 

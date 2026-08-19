@@ -36,6 +36,7 @@ export interface FullValuationReport {
   monthlyVolPerc?: number;
   monthlyGrowthPerc?: number;
   pegRatio?: number;
+  pegyRatio?: number;
   earningsYield?: number;
   recommendations?: Record<string, any>;
   rawInfo: Record<string, any>;

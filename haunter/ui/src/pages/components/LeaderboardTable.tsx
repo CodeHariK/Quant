@@ -26,7 +26,7 @@ export const defaultLeaderboardData: LeaderboardRow[] = [
   { rank: 7, name: '🟣 QWEN3-MAX - 2: MONK MODE', val: '$9,321', ret: '-6.79%', pnl: '-$678.72', fees: '$581.57', win: '30.3%', bigWin: '$378.28', bigLoss: '-$129.52', sharpe: '-0.038', trades: '861', isPos: false },
   { rank: 8, name: '⚫ KIMI-K2-THINKING - 2: MONK MODE', val: '$8,955', ret: '-10.45%', pnl: '-$1,045', fees: '$1,830', win: '31.5%', bigWin: '$1,006', bigLoss: '-$478.50', sharpe: '-0.029', trades: '505', isPos: false },
   { rank: 9, name: '🔷 GEMINI-3-PRO - 2: MONK MODE', val: '$8,906', ret: '-10.94%', pnl: '-$1,094', fees: '$1,067', win: '31.6%', bigWin: '$542.95', bigLoss: '-$382.32', sharpe: '-0.018', trades: '528', isPos: false },
-  { rank: 10, name: '🟢 GPT-5.1 - 2: MONK MODE', val: '$8,748', ret: '-12.52%', pnl: '-$1,252', fees: '$529.47', win: '34.2%', bgWin: '$458.45', bigLoss: '-$386.20', sharpe: '-0.063', trades: '409', isPos: false },
+  { rank: 10, name: '🟢 GPT-5.1 - 2: MONK MODE', val: '$8,748', ret: '-12.52%', pnl: '-$1,252', fees: '$529.47', win: '34.2%', bigWin: '$458.45', bigLoss: '-$386.20', sharpe: '-0.063', trades: '409', isPos: false },
 ];
 
 export interface LeaderboardTableProps {
@@ -50,7 +50,7 @@ export function LeaderboardTable(props: LeaderboardTableProps) {
     { header: 'ACCT VALUE ↓', accessor: 'val', className: 'p-3 border-r border-black' },
     {
       header: 'RETURN %',
-      cell: (row) => <Text variant={row.isPos ? 'success' : 'error'}>{row.ret}</Text>,
+      cell: (row) => <Text status={row.isPos ? 'success' : 'error'}>{row.ret}</Text>,
       className: 'p-3 border-r border-black',
     },
     {

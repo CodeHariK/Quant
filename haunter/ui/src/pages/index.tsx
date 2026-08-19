@@ -5,7 +5,6 @@ import { KiteConnectBanner } from './components/dashboard/KiteConnectBanner';
 import { KiteHoldingsTable } from './components/dashboard/KiteHoldingsTable';
 import { KiteGTTTable } from './components/dashboard/KiteGTTTable';
 import { KiteTradeLogs } from './components/dashboard/KiteTradeLogs';
-import { AggregatePerformance } from './components/dashboard/AggregatePerformance';
 
 import { fetchKitePortfolio, fetchKiteSession, saveKiteSession, deleteKiteSession, type KitePortfolioReport } from '../api/stockApi';
 
@@ -133,8 +132,6 @@ export default function Dashboard() {
       {kiteReport() && kiteReport()!.tradeHistory.length > 0 && (
         <KiteTradeLogs kiteReport={kiteReport} />
       )}
-
-      <AggregatePerformance />
     </PageLayout>
   );
 }

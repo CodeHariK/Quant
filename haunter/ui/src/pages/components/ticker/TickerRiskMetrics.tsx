@@ -17,9 +17,9 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
   return (
     <> {/* Quant Risk & Volatility Metrics Header Grid with Colored Grade Badges & Formula Info Modals */}
       {props.fullReport() && (
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Sharpe Ratio Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
 
             <div>
               <div class="flex justify-between items-start mb-2">
@@ -28,7 +28,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                   onClick={() => props.setActiveModal('sharpe')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
               <Text status={
@@ -40,7 +40,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                 {(props.fullReport()?.sharpeRatio ?? 0).toFixed(2)}
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted">Rf: 7.0% RBI</Text>
               <Chip
                 label={`GRADE: ${props.getSharpeGrade(props.fullReport()?.sharpeRatio ?? 0).grade}`}
@@ -51,7 +51,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
           </Card>
 
           {/* Sortino Ratio Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">SORTINO RATIO (5Y)</Text>
@@ -59,7 +59,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                   onClick={() => props.setActiveModal('sortino')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
               <Text status={
@@ -73,7 +73,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                   : (props.fullReport()?.sortinoRatio ?? 0).toFixed(2)}
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted" class="text-[10px]">Downside Vol Only</Text>
               <Chip
                 label={`GRADE: ${props.getSortinoGrade(props.fullReport()?.sortinoRatio ?? 0).grade}`}
@@ -84,7 +84,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
           </Card>
 
           {/* Annual Volatility Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">ANNUAL VOLATILITY</Text>
@@ -92,14 +92,14 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                   onClick={() => props.setActiveModal('volatility')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
               <Text variant="code" class="text-2xl font-bold block">
                 {(props.fullReport()?.annualizedVolatility ?? 0).toFixed(2)}%
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted" class="text-[10px]">252 Days Std Dev</Text>
               <Chip
                 label={props.getVolGrade(props.fullReport()?.annualizedVolatility ?? 0).grade}
@@ -110,7 +110,7 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
           </Card>
 
           {/* Max 5Y Drawdown Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">MAX 5Y DRAWDOWN</Text>
@@ -118,14 +118,14 @@ export function TickerRiskMetrics(props: TickerRiskMetricsProps) {
                   onClick={() => props.setActiveModal('drawdown')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
               <Text status="error" class="text-2xl font-bold block">
                 -{(props.fullReport()?.maxDrawdown ?? 0).toFixed(2)}%
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted" class="text-[10px]">Peak to Trough</Text>
               <Chip
                 label={props.getDrawdownGrade(props.fullReport()?.maxDrawdown ?? 0).grade}

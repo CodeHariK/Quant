@@ -281,7 +281,7 @@ export default function PortfoliosPage() {
                       </div>
                     </div>
                     <div class="flex-1 flex flex-col overflow-hidden relative">
-                      <PortfolioEquityChart equityCurve={sim.equityCurve()} />
+                      <PortfolioEquityChart equityCurve={sim.equityCurve()} stockCurves={sim.stockCurves()} />
                     </div>
                   </div>
                 </div>

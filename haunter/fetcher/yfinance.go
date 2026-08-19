@@ -139,8 +139,9 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 	eps := rawInfo.TrailingEps
 	earningsGrowth := rawInfo.EarningsGrowth
 	rawPeg := rawInfo.PegRatio
+	divYield := rawInfo.DividendYield
 
-	quantRatios := analyzer.CalculateValuationRatios(rawPeg, peRatio, eps, curPrice, earningsGrowth)
+	quantRatios := analyzer.CalculateValuationRatios(rawPeg, peRatio, eps, curPrice, earningsGrowth, divYield)
 
 	report := &types.FullValuationReport{
 		Symbol:                symbol,
@@ -158,6 +159,7 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		BuySellZone:           trendAnalysis.BuySellZone,
 		RelativePE:            peRatio,
 		PEGRatio:              quantRatios.PEGRatio,
+		PEGYRatio:             quantRatios.PEGYRatio,
 		EarningsYield:         quantRatios.EarningsYield,
 		Recommendations:       recTrend,
 		NextMonthForecast:     trendAnalysis.NextMonthForecast,

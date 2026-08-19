@@ -15,6 +15,7 @@ export interface StockSummary {
   totalInvested: number;
   currentValue: number;
   currentQty: number;
+  lumpsumReturn: number;
 }
 
 export function usePortfolioSimulation(
@@ -25,6 +26,7 @@ export function usePortfolioSimulation(
   const [error, setError] = createSignal<string | null>(null);
   
   const [equityCurve, setEquityCurve] = createSignal<EquityPoint[]>([]);
+  const [stockCurves, setStockCurves] = createSignal<Record<string, {time: string, value: number}[]>>({});
   const [stockBreakdown, setStockBreakdown] = createSignal<StockSummary[]>([]);
   
   const [totalInvested, setTotalInvested] = createSignal(0);
@@ -89,6 +91,7 @@ export function usePortfolioSimulation(
 
       // 4. Simulate
       const curve: EquityPoint[] = [];
+      const stockCurvesRaw: Record<string, {time: string, value: number}[]> = {};
       const currentQty: Record<string, number> = {};
       const lastKnownPrice: Record<string, number> = {};
       const stockInvested: Record<string, number> = {};
@@ -99,6 +102,7 @@ export function usePortfolioSimulation(
       results.forEach(res => {
         currentQty[res.stock.symbol] = res.stock.initialQuantity;
         lastKnownPrice[res.stock.symbol] = 0;
+        stockCurvesRaw[res.stock.symbol] = [];
         
         const firstPrice = priceMaps[res.stock.symbol].get(filteredDates[0]) || 0;
         stockInvested[res.stock.symbol] = res.stock.initialQuantity * firstPrice;
@@ -126,7 +130,10 @@ export function usePortfolioSimulation(
             runningInvested += res.stock.sipAmount;
           }
 
-          dailyPortfolioValue += (currentQty[sym] * lastKnownPrice[sym]);
+          const dailyStockValue = currentQty[sym] * lastKnownPrice[sym];
+          dailyPortfolioValue += dailyStockValue;
+          
+          stockCurvesRaw[sym].push({ time: date, value: dailyStockValue });
         });
 
         curve.push({
@@ -139,6 +146,10 @@ export function usePortfolioSimulation(
       // Calculate final breakdown
       const breakdown: StockSummary[] = results.map(res => {
         const sym = res.stock.symbol;
+        const firstPrice = priceMaps[sym].get(filteredDates[0]) || 0;
+        const lastPrice = lastKnownPrice[sym] || 0;
+        const lumpsumReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+
         return {
           symbol: sym,
           initialQuantity: res.stock.initialQuantity,
@@ -146,10 +157,12 @@ export function usePortfolioSimulation(
           totalInvested: stockInvested[sym],
           currentValue: currentQty[sym] * lastKnownPrice[sym],
           currentQty: currentQty[sym],
+          lumpsumReturn,
         };
       });
 
       setEquityCurve(curve);
+      setStockCurves(stockCurvesRaw);
       setStockBreakdown(breakdown);
       
       const finalInvested = curve.length > 0 ? curve[curve.length - 1].invested : 0;
@@ -165,6 +178,7 @@ export function usePortfolioSimulation(
     loading,
     error,
     equityCurve,
+    stockCurves,
     stockBreakdown,
     totalInvested,
     currentValue,

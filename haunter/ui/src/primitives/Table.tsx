@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web';
 import { createSignal, createMemo  } from 'solid-js';
-import { Text } from './Text';
+import { Text, TextStatus } from './Text';
 
 export type AggregateType = 'sum' | 'avg' | 'count' | ((data: any[]) => JSX.Element);
 
@@ -15,6 +15,7 @@ export interface Column<T> {
   sortValue?: (row: T) => number | string;
   aggregate?: AggregateType;
   aggregateFormatter?: (value: number) => string;
+  status?: (row: T) => TextStatus | undefined;
 }
 
 export interface TableProps<T> {
@@ -90,7 +91,7 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
         const val = col.sortValue ? col.sortValue(row) : col.accessor ? row[col.accessor] : undefined;
         if (typeof val === 'number') return val;
         if (typeof val === 'string') {
-          const num = Number(val.replace(/[^0-9.-]+/g, ''));
+          const num = Number(String(val).replace(/[^0-9.-]+/g, ''));
           return isNaN(num) ? undefined : num;
         }
         return undefined;
@@ -109,7 +110,7 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
     const isNeg = result < 0;
 
     return (
-      <Text variant={isNeg ? 'error' : 'success'} class="font-bold">
+      <Text status={isNeg ? 'error' : 'success'} class="font-bold">
         {col.aggregate === 'avg' ? `AVG: ${formatted}` : formatted}
       </Text>
     );
@@ -157,7 +158,7 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
                   {col.cell ? (
                     col.cell(row)
                   ) : col.accessor ? (
-                    <Text variant="code">{String(row[col.accessor] ?? '')}</Text>
+                    <Text status={col.status ? col.status(row) : undefined}>{String(row[col.accessor] ?? '')}</Text>
                   ) : (
                     ''
                   )}

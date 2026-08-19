@@ -9,12 +9,10 @@ import { fetchValuationReport, fetchWatchlist, addToWatchlist, removeFromWatchli
 import type { FullValuationReport } from '../types/events';
 import { TickerHeader } from './components/ticker/TickerHeader';
 import { TickerTrendRadar } from './components/ticker/TickerTrendRadar';
-import { TickerAnalystConsensus } from './components/ticker/TickerAnalystConsensus';
 import { TickerRiskMetrics } from './components/ticker/TickerRiskMetrics';
 import { TickerValuationRatios } from './components/ticker/TickerValuationRatios';
 import { TickerFormulaModals } from './components/ticker/TickerFormulaModals';
 import { TickerFinancialStats } from './components/ticker/TickerFinancialStats';
-import { TickerTradeHistory } from './components/ticker/TickerTradeHistory';
 import { TickerRawInspector } from './components/ticker/TickerRawInspector';
 import { TickerPriceChart } from './components/ticker/TickerPriceChart';
 
@@ -150,13 +148,6 @@ export default function Ticker() {
         loadStockReport={loadStockReport}
       />
 
-      {fullReport()?.history && fullReport()!.history.length > 0 && (
-        <div class="mb-8">
-          <Text variant="h2" class="mb-4 block">PRICE ACTION & VOLUME</Text>
-          <TickerPriceChart data={fullReport()!.history} />
-        </div>
-      )}
-
       <TickerTrendRadar
         fullReport={fullReport}
         selectedSymbol={selectedSymbol}
@@ -164,7 +155,7 @@ export default function Ticker() {
         setActiveModal={setActiveModal}
       />
 
-      <TickerAnalystConsensus fullReport={fullReport} />
+
 
       <TickerRiskMetrics
         fullReport={fullReport}
@@ -202,6 +193,13 @@ export default function Ticker() {
         }}
       />
 
+      {fullReport()?.history && fullReport()!.history.length > 0 && (
+        <div class="mb-8">
+          <Text variant="h2" class="mb-4 block">PRICE ACTION & VOLUME</Text>
+          <TickerPriceChart data={fullReport()!.history} />
+        </div>
+      )}
+
       <TickerFinancialStats stockInfo={stockInfo} />
 
       {/* 5-Year Annual Financial Statements (Balance Sheet, Income Statement, Cash Flow) */}
@@ -225,7 +223,6 @@ export default function Ticker() {
 
       <TickerRawInspector fullReport={fullReport} selectedSymbol={selectedSymbol} />
 
-      <TickerTradeHistory selectedSymbol={selectedSymbol} />
       {/* Floating Action Button (FAB) for Quick Watchlist Access */}
       <button
         onClick={() => setActiveModal('watchlist')}

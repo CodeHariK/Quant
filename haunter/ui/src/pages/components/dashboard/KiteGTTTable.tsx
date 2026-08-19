@@ -1,5 +1,7 @@
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { fetchKiteGTTs, type KiteGTT } from '../../../api/stockApi';
+import { Table, Column } from '../../../primitives/Table';
+import { Badge } from '../../../primitives/Badge';
 
 export function KiteGTTTable() {
   const [gtts, setGtts] = createSignal<KiteGTT[]>([]);
@@ -38,6 +40,75 @@ export function KiteGTTTable() {
     return triggerPrice * totalQty;
   };
 
+  const columns: Column<KiteGTT>[] = [
+    {
+      header: 'Symbol',
+      cell: (row) => (
+        <div>
+          <span class="font-bold text-foreground">{row.condition?.tradingsymbol || 'N/A'}</span>
+          <span class="text-[10px] text-muted block font-normal">{row.condition?.exchange || 'NSE'}</span>
+        </div>
+      ),
+      sortValue: (row) => row.condition?.tradingsymbol || '',
+    },
+    {
+      header: 'Type',
+      cell: (row) => <Badge label={row.type} variant="primary" />,
+      sortValue: (row) => row.type,
+    },
+    {
+      header: 'Status',
+      cell: (row) => (
+        <Badge
+          label={row.status}
+          variant={row.status === 'active' ? 'success' : 'warning'}
+        />
+      ),
+      sortValue: (row) => row.status,
+    },
+    {
+      header: 'Trigger Price',
+      cell: (row) => <span class="font-semibold text-foreground">{row.condition?.trigger_values ? `₹${row.condition.trigger_values.join(', ')}` : 'N/A'}</span>,
+      sortValue: (row) => row.condition?.trigger_values?.[0] || 0,
+    },
+    {
+      header: 'Last Price',
+      cell: (row) => <span class="text-muted">₹{row.condition?.last_price ? row.condition.last_price.toFixed(2) : '-'}</span>,
+      sortValue: (row) => row.condition?.last_price || 0,
+    },
+    {
+      header: 'Qty',
+      cell: (row) => (
+        <div class="flex flex-col gap-0.5">
+          <For each={row.orders}>
+            {(ord) => (
+              <div class="text-[11px] leading-tight font-semibold">
+                <span class={ord.transaction_type === 'buy' ? 'text-green-600' : 'text-red-600'}>
+                  {ord.transaction_type.toUpperCase()}
+                </span>{' '}
+                {ord.quantity}
+              </div>
+            )}
+          </For>
+        </div>
+      ),
+    },
+    {
+      header: 'Trigger Value',
+      cell: (row) => {
+        const totalVal = getGTTTotalValue(row);
+        return <span class="font-bold text-foreground">{totalVal > 0 ? `₹${totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</span>;
+      },
+      sortValue: (row) => getGTTTotalValue(row),
+    },
+    {
+      header: 'Created At',
+      align: 'right',
+      cell: (row) => <span class="text-muted text-[11px]">{row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</span>,
+      sortValue: (row) => row.created_at ? new Date(row.created_at).getTime() : 0,
+    },
+  ];
+
   return (
     <div class="w-full bg-surface border border-outline-variant rounded-lg p-4 mb-6 shadow-sm">
       <div class="flex items-center justify-between mb-4">
@@ -71,7 +142,7 @@ export function KiteGTTTable() {
       </Show>
 
       <Show when={!loading() && !error()}>
-        <Show 
+        <Show
           when={gtts().length > 0}
           fallback={
             <div class="py-8 text-center text-xs text-muted bg-surface-variant/30 rounded border border-dashed border-outline-variant">
@@ -79,77 +150,10 @@ export function KiteGTTTable() {
             </div>
           }
         >
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr class="border-b border-outline-variant text-muted bg-surface-variant/50">
-                  <th class="py-2.5 px-3">Symbol</th>
-                  <th class="py-2.5 px-3">Type</th>
-                  <th class="py-2.5 px-3">Status</th>
-                  <th class="py-2.5 px-3">Trigger Price</th>
-                  <th class="py-2.5 px-3">Last Price</th>
-                  <th class="py-2.5 px-3">Qty</th>
-                  <th class="py-2.5 px-3 font-semibold text-foreground">Trigger Value (Qty × Trigger)</th>
-                  <th class="py-2.5 px-3 text-right">Created At</th>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={gtts()}>
-                  {(gtt) => {
-                    const totalVal = getGTTTotalValue(gtt);
-                    return (
-                      <tr class="border-b border-outline-variant/40 hover:bg-surface-variant/30 transition-colors">
-                        <td class="py-2.5 px-3 font-bold text-foreground">
-                          {gtt.condition?.tradingsymbol || 'N/A'}
-                          <span class="text-[10px] text-muted block font-normal">{gtt.condition?.exchange || 'NSE'}</span>
-                        </td>
-                        <td class="py-2.5 px-3 uppercase font-semibold">
-                          <span class="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20">
-                            {gtt.type}
-                          </span>
-                        </td>
-                        <td class="py-2.5 px-3">
-                          <span 
-                            class={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              gtt.status === 'active' 
-                                ? 'bg-green-500/10 text-green-600 border border-green-500/30' 
-                                : 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/30'
-                            }`}
-                          >
-                            {gtt.status}
-                          </span>
-                        </td>
-                        <td class="py-2.5 px-3 font-semibold text-foreground">
-                          {gtt.condition?.trigger_values ? `₹${gtt.condition.trigger_values.join(', ')}` : 'N/A'}
-                        </td>
-                        <td class="py-2.5 px-3 text-muted">
-                          ₹{gtt.condition?.last_price ? gtt.condition.last_price.toFixed(2) : '-'}
-                        </td>
-                        <td class="py-2.5 px-3">
-                          <For each={gtt.orders}>
-                            {(ord) => (
-                              <div class="text-[11px] leading-tight font-semibold">
-                                <span class={`font-bold ${ord.transaction_type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
-                                  {ord.transaction_type.toUpperCase()}
-                                </span>{' '}
-                                {ord.quantity}
-                              </div>
-                            )}
-                          </For>
-                        </td>
-                        <td class="py-2.5 px-3 font-bold text-foreground">
-                          {totalVal > 0 ? `₹${totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                        </td>
-                        <td class="py-2.5 px-3 text-right text-muted text-[11px]">
-                          {gtt.created_at ? new Date(gtt.created_at).toLocaleDateString() : '-'}
-                        </td>
-                      </tr>
-                    );
-                  }}
-                </For>
-              </tbody>
-            </table>
-          </div>
+          <Table
+            columns={columns}
+            data={gtts()}
+          />
         </Show>
       </Show>
     </div>

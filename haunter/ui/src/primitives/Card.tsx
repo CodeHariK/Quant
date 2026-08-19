@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web';
-import { ParentProps  } from 'solid-js';
+import { ParentProps } from 'solid-js';
 import { Text } from './Text';
 
 export interface CardProps extends ParentProps {
@@ -14,7 +14,7 @@ export interface CardProps extends ParentProps {
 
 export function Card(props: CardProps) {
   return (
-    <div class={props.containerClass || "border border-primary bg-surface-container-lowest p-4 flex flex-col justify-between"}>
+    <div class={props.containerClass || "border border-outline bg-surface-container-lowest p-4 flex flex-col justify-between"}>
       {(props.title || props.headerAction) && (
         <div class={props.headerClass || "flex justify-between items-center mb-4 border-b border-primary pb-2"}>
           <div>

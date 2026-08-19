@@ -11,11 +11,11 @@ export interface TickerValuationRatiosProps {
 
 export function TickerValuationRatios(props: TickerValuationRatiosProps) {
   return (
-    <> {/* Valuation Ratios Grid: PEG Ratio & Earnings Yield */}
+    <> {/* Valuation Ratios Grid: PEG Ratio, PEGY Ratio & Earnings Yield */}
       {props.fullReport() && (
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {/* PEG Ratio Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">PEG RATIO (P/E to Growth)</Text>
@@ -23,7 +23,7 @@ export function TickerValuationRatios(props: TickerValuationRatiosProps) {
                   onClick={() => props.setActiveModal('peg')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
               <Text
@@ -33,7 +33,7 @@ export function TickerValuationRatios(props: TickerValuationRatiosProps) {
                 {(props.fullReport()?.pegRatio ?? 0) > 0 ? (props.fullReport()?.pegRatio ?? 0).toFixed(2) : 'N/A'}
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted" class="text-[10px]">Bench: &lt;1.0 Cheap | &gt;2.0 Expensive</Text>
               <Chip
                 label={
@@ -55,8 +55,49 @@ export function TickerValuationRatios(props: TickerValuationRatiosProps) {
             </div>
           </Card>
 
+          {/* PEGY Ratio Card */}
+          <Card>
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <Text variant="label">PEGY RATIO (Growth + Dividend)</Text>
+                <button
+                  onClick={() => props.setActiveModal('peg')}
+                  class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
+                >
+                  FORMULA
+                </button>
+              </div>
+              <Text
+                status={(props.fullReport()?.pegyRatio ?? 0) > 0 && (props.fullReport()?.pegyRatio ?? 0) <= 1.0 ? 'success' : (props.fullReport()?.pegyRatio ?? 0) <= 2.0 ? 'accent' : 'error'}
+                class="text-2xl font-bold block"
+              >
+                {(props.fullReport()?.pegyRatio ?? 0) > 0 ? (props.fullReport()?.pegyRatio ?? 0).toFixed(2) : 'N/A'}
+              </Text>
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <Text variant="muted" class="text-[10px]">P/E ÷ (Growth% + DivYield%)</Text>
+              <Chip
+                label={
+                  (props.fullReport()?.pegyRatio ?? 0) > 0 && (props.fullReport()?.pegyRatio ?? 0) <= 1.0
+                    ? 'CHEAP (< 1.0)'
+                    : (props.fullReport()?.pegyRatio ?? 0) <= 2.0 && (props.fullReport()?.pegyRatio ?? 0) > 0
+                      ? 'FAIR (1.0 - 2.0)'
+                      : 'EXPENSIVE (> 2.0)'
+                }
+                color={
+                  (props.fullReport()?.pegyRatio ?? 0) > 0 && (props.fullReport()?.pegyRatio ?? 0) <= 1.0
+                    ? 'success'
+                    : (props.fullReport()?.pegyRatio ?? 0) <= 2.0 && (props.fullReport()?.pegyRatio ?? 0) > 0
+                      ? 'info'
+                      : 'error'
+                }
+                class="text-[10px] py-0.5 px-2"
+              />
+            </div>
+          </Card>
+
           {/* Earnings Yield Card */}
-          <Card containerClass="border p-4 relative flex flex-col justify-between">
+          <Card>
             <div>
               <div class="flex justify-between items-start mb-2">
                 <Text variant="label">EARNINGS YIELD %</Text>
@@ -64,17 +105,14 @@ export function TickerValuationRatios(props: TickerValuationRatiosProps) {
                   onClick={() => props.setActiveModal('earningsYield')}
                   class="text-[11px] font-mono text-outline hover:text-on-surface underline cursor-pointer"
                 >
-                  ℹ️ FORMULA
+                  FORMULA
                 </button>
               </div>
-              <Text
-                variant={(props.fullReport()?.earningsYield ?? 0) >= 7.0 ? 'success' : 'error'}
-                class="text-2xl font-bold block"
-              >
+              <Text status={(props.fullReport()?.earningsYield ?? 0) >= 7.0 ? 'success' : 'error'}>
                 {(props.fullReport()?.earningsYield ?? 0).toFixed(2)}%
               </Text>
             </div>
-            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
+            <div class="mt-3 flex items-center justify-between">
               <Text variant="muted" class="text-[10px]">Risk-Free Benchmark: 7.0% RBI Rate</Text>
               <Chip
                 label={

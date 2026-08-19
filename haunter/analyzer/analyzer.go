@@ -321,34 +321,48 @@ func CalculateTrendDeviation(currentPrice float64, bars []types.HistoryBar) *Val
 	}
 }
 
-// ValuationRatios holds pure valuation metrics (PEG Ratio, Earnings Yield)
+// ValuationRatios holds pure valuation metrics (PEG Ratio, PEGY Ratio, Earnings Yield)
 type ValuationRatios struct {
 	PEGRatio      float64
+	PEGYRatio     float64
 	EarningsYield float64
 }
 
-// CalculateValuationRatios computes PEG Ratio (using raw PEG from Yahoo if available, or Trailing PE / Earnings Growth Rate %)
+// CalculateValuationRatios computes PEG Ratio, PEGY Ratio (P/E / (Growth % + Dividend Yield %)),
 // and Earnings Yield % ((Trailing EPS / Current Price) * 100).
-func CalculateValuationRatios(rawPeg float64, peRatio float64, eps float64, currentPrice float64, earningsGrowth float64) *ValuationRatios {
+func CalculateValuationRatios(rawPeg float64, peRatio float64, eps float64, currentPrice float64, earningsGrowth float64, dividendYield float64) *ValuationRatios {
 	peg := 0.0
+	pegy := 0.0
 	earningsYield := 0.0
+
+	// Standardize growth rate
+	growthPercentage := earningsGrowth
+	if growthPercentage > 0 && growthPercentage < 2.0 {
+		growthPercentage = growthPercentage * 100.0 // Convert decimal 0.15 -> 15.0%
+	}
 
 	// 1. PEG Ratio: Use Yahoo Finance's direct PegRatio if provided and valid (> 0)
 	if rawPeg > 0 {
 		peg = rawPeg
 	} else {
 		// Fallback: Trailing P/E / Earnings Growth %
-		growthPercentage := earningsGrowth
-		if growthPercentage > 0 && growthPercentage < 2.0 {
-			growthPercentage = growthPercentage * 100.0 // Convert decimal 0.15 -> 15.0%
-		}
-
 		if peRatio > 0 && growthPercentage > 0 {
 			peg = peRatio / growthPercentage
 		}
 	}
 
-	// 2. Earnings Yield % Calculation: (EPS / Current Price) * 100
+	// 2. PEGY Ratio: Trailing P/E / (Earnings Growth % + Dividend Yield %)
+	divYieldPercentage := dividendYield
+	if divYieldPercentage > 0 && divYieldPercentage < 1.0 {
+		divYieldPercentage = divYieldPercentage * 100.0 // Convert decimal 0.015 -> 1.5%
+	}
+
+	totalReturnRate := growthPercentage + divYieldPercentage
+	if peRatio > 0 && totalReturnRate > 0 {
+		pegy = peRatio / totalReturnRate
+	}
+
+	// 3. Earnings Yield % Calculation: (EPS / Current Price) * 100
 	if currentPrice > 0 && eps > 0 {
 		earningsYield = (eps / currentPrice) * 100.0
 	} else if peRatio > 0 {
@@ -358,6 +372,7 @@ func CalculateValuationRatios(rawPeg float64, peRatio float64, eps float64, curr
 
 	return &ValuationRatios{
 		PEGRatio:      peg,
+		PEGYRatio:     pegy,
 		EarningsYield: earningsYield,
 	}
 }

@@ -183,27 +183,25 @@ export default function Tradebook() {
       </div>
 
       {/* Interactive Sortable Tradebook Table with Summary Aggregates */}
-      <Card containerClass="border border-outline-variant bg-surface p-6">
-        {loading() ? (
-          <Text variant="muted" class="animate-pulse p-4 block text-center">Loading tradebook records from BoltDB...</Text>
-        ) : records().length === 0 ? (
-          <div class="text-center py-12">
-            <Text variant="h3" class="mb-2 block">NO TRADEBOOK RECORDS FOUND</Text>
-            <Text variant="muted" class="mb-6 block">
-              Upload your Zerodha Console Tradebook CSV file above to display your multi-year historical trade breakdown per year.
-            </Text>
-            <OutlineButton onClick={() => fileInputRef?.click()}>
-              📁 UPLOAD TRADEBOOK CSV
-            </OutlineButton>
-          </div>
-        ) : (
-          <Table
-            columns={columns}
-            data={records()}
-            showSummary
-          />
-        )}
-      </Card>
+      {loading() ? (
+        <Text variant="muted" class="animate-pulse p-4 block text-center">Loading tradebook records from BoltDB...</Text>
+      ) : records().length === 0 ? (
+        <div class="text-center py-12">
+          <Text variant="h3" class="mb-2 block">NO TRADEBOOK RECORDS FOUND</Text>
+          <Text variant="muted" class="mb-6 block">
+            Upload your Zerodha Console Tradebook CSV file above to display your multi-year historical trade breakdown per year.
+          </Text>
+          <OutlineButton onClick={() => fileInputRef?.click()}>
+            📁 UPLOAD TRADEBOOK CSV
+          </OutlineButton>
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          data={records()}
+          showSummary
+        />
+      )}
     </PageLayout>
   );
 }

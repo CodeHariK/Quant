@@ -69,6 +69,7 @@ type FullValuationReport struct {
 	MonthlyVolPerc       float64                  `json:"monthlyVolPerc"`       // Average Monthly Volatility Percentage Spread
 	MonthlyGrowthPerc    float64                  `json:"monthlyGrowthPerc"`    // Average Month-over-Month Growth Rate %
 	PEGRatio             float64                      `json:"pegRatio"`             // Price/Earnings-to-Growth Ratio (PE / EarningsGrowth%)
+	PEGYRatio            float64                      `json:"pegyRatio"`            // Price/Earnings-to-Growth & Dividend Yield Ratio (PE / (Growth% + DivYield%))
 	EarningsYield        float64                      `json:"earningsYield"`        // Earnings Yield % ( (EPS / CurrentPrice) * 100 )
 	Recommendations      *models.RecommendationTrend `json:"recommendations"`      // Wall Street Analyst Consensus Ratings
 	RawInfo              *models.Info                 `json:"rawInfo"`
