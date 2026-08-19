@@ -1,12 +1,14 @@
 import { createEffect, createMemo, onCleanup } from 'solid-js';
-import { IChartApi, LineSeries } from 'lightweight-charts';
+import { IChartApi, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useTheme } from '../../../store/themeStore';
 import type { EquityPoint } from '../../../hooks/usePortfolioSimulation';
 import { InteractiveChart, MeasurementPoint } from '../../../primitives/InteractiveChart';
+import type { KiteTrade } from '../../../api/stockApi';
 
 interface PortfolioEquityChartProps {
   equityCurve: EquityPoint[];
   stockCurves?: Record<string, {time: string, value: number}[]>;
+  tradeHistory?: KiteTrade[];
 }
 
 const STOCK_COLORS = [
@@ -73,6 +75,23 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
           stockSeriesMap[symbol] = stockSeries;
           colorIndex++;
         });
+
+        if (props.tradeHistory && props.tradeHistory.length > 0) {
+          Object.entries(stockSeriesMap).forEach(([symbol, series]) => {
+            const rawSym = symbol.replace('.NS', '');
+            const trades = props.tradeHistory!.filter(t => t.tradingsymbol === rawSym);
+            if (trades.length > 0) {
+              const markers = trades.map(trade => ({
+                time: trade.tradeTimestamp.split('T')[0],
+                position: trade.transactionType === 'BUY' ? 'belowBar' : 'aboveBar',
+                color: trade.transactionType === 'BUY' ? '#4CAF50' : '#FF5252',
+                shape: trade.transactionType === 'BUY' ? 'arrowUp' : 'arrowDown',
+                text: `${trade.transactionType} ${trade.quantity} @ ₹${trade.averagePrice}`,
+              }));
+              createSeriesMarkers(series, markers as any);
+            }
+          });
+        }
       }
       
       chart.timeScale().fitContent();
@@ -106,6 +125,23 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
             delete stockSeriesMap[sym];
           }
         });
+
+        if (props.tradeHistory && props.tradeHistory.length > 0) {
+          Object.entries(stockSeriesMap).forEach(([symbol, series]) => {
+            const rawSym = symbol.replace('.NS', '');
+            const trades = props.tradeHistory!.filter(t => t.tradingsymbol === rawSym);
+            if (trades.length > 0) {
+              const markers = trades.map(trade => ({
+                time: trade.tradeTimestamp.split('T')[0],
+                position: trade.transactionType === 'BUY' ? 'belowBar' : 'aboveBar',
+                color: trade.transactionType === 'BUY' ? '#4CAF50' : '#FF5252',
+                shape: trade.transactionType === 'BUY' ? 'arrowUp' : 'arrowDown',
+                text: `${trade.transactionType} ${trade.quantity} @ ₹${trade.averagePrice}`,
+              }));
+              createSeriesMarkers(series, markers as any);
+            }
+          });
+        }
       }
     }
   });

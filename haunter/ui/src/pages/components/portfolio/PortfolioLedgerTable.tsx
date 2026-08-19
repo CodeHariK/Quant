@@ -1,12 +1,15 @@
 import { Table, Column } from '../../../primitives/Table';
 import { Text } from '../../../primitives/Text';
 import type { StockSummary } from '../../../hooks/usePortfolioSimulation';
+import { useNavigate } from '@solidjs/router';
 
 interface PortfolioLedgerTableProps {
   stockBreakdown: StockSummary[];
 }
 
 export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
+  const navigate = useNavigate();
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -91,6 +94,7 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       <Table
         columns={columns}
         data={props.stockBreakdown}
+        onRowClick={(row) => navigate(`/ticker?symbol=${encodeURIComponent(row.symbol)}`)}
       />
     </div>
   );

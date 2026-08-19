@@ -26,6 +26,7 @@ export interface TableProps<T> {
   headerClass?: string;
   rowClass?: (row: T, index: number) => string;
   showSummary?: boolean;
+  onRowClick?: (row: T, index: number) => void;
 }
 
 export function Table<T extends Record<string, any>>(props: TableProps<T>) {
@@ -149,7 +150,10 @@ export function Table<T extends Record<string, any>>(props: TableProps<T>) {
         </thead>
         <tbody class="divide-y divide-outline-variant">
           {sortedData().map((row, idx) => (
-            <tr class={props.rowClass ? props.rowClass(row, idx) : "border-b border-outline-variant hover:bg-surface-container-high transition-colors"}>
+            <tr 
+              class={`${props.rowClass ? props.rowClass(row, idx) : "border-b border-outline-variant hover:bg-surface-container-high transition-colors"} ${props.onRowClick ? 'cursor-pointer' : ''}`}
+              onClick={() => props.onRowClick && props.onRowClick(row, idx)}
+            >
               {props.columns.map((col) => (
                 <td
                   class={`${col.className || 'p-3 border-r border-outline-variant'} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'

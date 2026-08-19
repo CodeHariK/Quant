@@ -18,9 +18,12 @@ export interface StockSummary {
   lumpsumReturn: number;
 }
 
+export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
+
 export function usePortfolioSimulation(
   portfolio: () => Portfolio | undefined,
-  timeframe: () => '1Y' | '5Y' | 'MAX'
+  timeframe: () => '1Y' | '5Y' | 'MAX',
+  mode: () => SimulationMode = () => 'MANUAL'
 ) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
@@ -32,7 +35,7 @@ export function usePortfolioSimulation(
   const [totalInvested, setTotalInvested] = createSignal(0);
   const [currentValue, setCurrentValue] = createSignal(0);
 
-  createEffect(() => [portfolio(), timeframe()] as const, ([p, tf]) => {
+  createEffect(() => [portfolio(), timeframe(), mode()] as const, ([p, tf, simMode]) => {
     if (!p || !p.stocks || p.stocks.length === 0) {
       setTotalInvested(0);
       setCurrentValue(0);
@@ -98,14 +101,48 @@ export function usePortfolioSimulation(
       let lastMonthStr = "";
       let runningInvested = 0;
 
+      const isTradebookExact = simMode === 'TRADEBOOK_EXACT';
+      
+      // Trade mapping for Kite
+      const tradesByDate: Record<string, any[]> = {};
+      const priorTradeQty: Record<string, number> = {};
+      const priorTradeInvested: Record<string, number> = {};
+
+      if (isTradebookExact && p.tradeHistory) {
+        p.tradeHistory.forEach(trade => {
+          const date = trade.tradeTimestamp.split('T')[0];
+          const sym = trade.tradingsymbol.endsWith('.NS') ? trade.tradingsymbol : `${trade.tradingsymbol}.NS`;
+
+          if (date < filteredDates[0]) {
+             if (!priorTradeQty[sym]) priorTradeQty[sym] = 0;
+             if (!priorTradeInvested[sym]) priorTradeInvested[sym] = 0;
+             if (trade.transactionType === 'BUY') {
+                priorTradeQty[sym] += trade.quantity;
+                priorTradeInvested[sym] += (trade.quantity * trade.averagePrice);
+             } else if (trade.transactionType === 'SELL') {
+                priorTradeQty[sym] = Math.max(0, priorTradeQty[sym] - trade.quantity);
+                priorTradeInvested[sym] = Math.max(0, priorTradeInvested[sym] - (trade.quantity * trade.averagePrice));
+             }
+          } else {
+             if (!tradesByDate[date]) tradesByDate[date] = [];
+             tradesByDate[date].push(trade);
+          }
+        });
+      }
+
       // Initialize based on period start
       results.forEach(res => {
-        currentQty[res.stock.symbol] = res.stock.initialQuantity;
-        lastKnownPrice[res.stock.symbol] = 0;
-        stockCurvesRaw[res.stock.symbol] = [];
-        
-        const firstPrice = priceMaps[res.stock.symbol].get(filteredDates[0]) || 0;
-        stockInvested[res.stock.symbol] = res.stock.initialQuantity * firstPrice;
+        const sym = res.stock.symbol;
+        if (isTradebookExact) {
+            currentQty[sym] = priorTradeQty[sym] || 0;
+            stockInvested[sym] = priorTradeInvested[sym] || 0;
+        } else {
+            currentQty[sym] = res.stock.initialQuantity;
+            const firstPrice = priceMaps[sym].get(filteredDates[0]) || 0;
+            stockInvested[sym] = res.stock.initialQuantity * firstPrice;
+        }
+        lastKnownPrice[sym] = 0;
+        stockCurvesRaw[sym] = [];
       });
 
       filteredDates.forEach(date => {
@@ -115,6 +152,22 @@ export function usePortfolioSimulation(
 
         let dailyPortfolioValue = 0;
 
+        // Process Kite trades for today BEFORE calculating value
+        if (isTradebookExact && tradesByDate[date]) {
+          tradesByDate[date].forEach(trade => {
+            const sym = trade.tradingsymbol.endsWith('.NS') ? trade.tradingsymbol : `${trade.tradingsymbol}.NS`;
+            if (currentQty[sym] !== undefined) {
+              if (trade.transactionType === 'BUY') {
+                currentQty[sym] += trade.quantity;
+                stockInvested[sym] += (trade.quantity * trade.averagePrice);
+              } else if (trade.transactionType === 'SELL') {
+                currentQty[sym] = Math.max(0, currentQty[sym] - trade.quantity);
+                stockInvested[sym] = Math.max(0, stockInvested[sym] - (trade.quantity * trade.averagePrice));
+              }
+            }
+          });
+        }
+
         results.forEach(res => {
           const sym = res.stock.symbol;
           const priceToday = priceMaps[sym].get(date);
@@ -123,7 +176,7 @@ export function usePortfolioSimulation(
              lastKnownPrice[sym] = priceToday;
           }
 
-          if (isNewMonth && res.stock.sipAmount > 0 && lastKnownPrice[sym] > 0) {
+          if (simMode === 'MANUAL' && isNewMonth && res.stock.sipAmount > 0 && lastKnownPrice[sym] > 0) {
             const sharesBought = res.stock.sipAmount / lastKnownPrice[sym];
             currentQty[sym] += sharesBought;
             stockInvested[sym] += res.stock.sipAmount;

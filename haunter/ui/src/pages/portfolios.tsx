@@ -5,6 +5,7 @@ import {
   fetchPortfolios,
   savePortfolio,
   deletePortfolio,
+  fetchKitePortfolio
 } from '../api/stockApi';
 import { PortfolioEquityChart } from './components/portfolio/PortfolioEquityChart';
 import { PortfolioLedgerTable } from './components/portfolio/PortfolioLedgerTable';
@@ -15,7 +16,12 @@ export default function PortfoliosPage() {
   const [portfolios, setPortfolios] = createSignal<Portfolio[]>([]);
   const [selectedPortfolioId, setSelectedPortfolioId] = createSignal<string | null>(null);
 
-  const selectedPortfolio = () => portfolios()?.find(p => p.id === selectedPortfolioId());
+  const [kitePortfolio, setKitePortfolio] = createSignal<Portfolio | null>(null);
+
+  const selectedPortfolio = () => {
+    if (selectedPortfolioId() === 'kite-live') return kitePortfolio() || undefined;
+    return portfolios()?.find(p => p.id === selectedPortfolioId());
+  };
 
   const refetch = async () => {
     try {
@@ -23,6 +29,30 @@ export default function PortfoliosPage() {
       setPortfolios(data);
     } catch (e) {
       console.error(e);
+    }
+    
+    try {
+      const kiteData = await fetchKitePortfolio();
+      if (kiteData && kiteData.holdings) {
+        const kp: Portfolio = {
+          id: 'kite-live',
+          name: '🎯 Kite Portfolio (Live)',
+          createdAt: kiteData.fetchedAt || new Date().toISOString(),
+          isKite: true,
+          tradeHistory: kiteData.tradeHistory || [],
+          stocks: kiteData.holdings.map(h => ({
+            symbol: h.tradingsymbol.endsWith('.NS') ? h.tradingsymbol : `${h.tradingsymbol}.NS`,
+            initialQuantity: 0,
+            sipAmount: 1000
+          }))
+        };
+        setKitePortfolio(kp);
+      } else {
+        setKitePortfolio(null);
+      }
+    } catch (e) {
+       // Ignore, user might not be logged in to kite
+       setKitePortfolio(null);
     }
   };
 
@@ -33,7 +63,17 @@ export default function PortfoliosPage() {
   const [timeframe, setTimeframe] = createSignal<'1Y' | '5Y' | 'MAX'>('1Y');
 
   // Simulation
-  const sim = usePortfolioSimulation(selectedPortfolio, timeframe);
+  const sim = usePortfolioSimulation(
+    selectedPortfolio, 
+    timeframe, 
+    () => 'MANUAL'
+  );
+
+  const simExact = usePortfolioSimulation(
+    () => selectedPortfolio()?.isKite ? selectedPortfolio() : undefined,
+    timeframe,
+    () => 'TRADEBOOK_EXACT'
+  );
 
   // Create new portfolio state
   const [isCreating, setIsCreating] = createSignal(false);
@@ -168,6 +208,20 @@ export default function PortfoliosPage() {
         </Show>
 
         <div class="flex-1 overflow-y-auto">
+          <Show when={kitePortfolio()}>
+            {(kp) => (
+              <div
+                onClick={() => setSelectedPortfolioId(kp().id)}
+                class={`p-3 border-b border-outline-variant cursor-pointer flex justify-between items-center group transition-colors ${selectedPortfolioId() === kp().id ? 'bg-white/10 border-l-2 border-l-[#4B9CFF]' : 'hover:bg-surface-container-low'}`}
+              >
+                <div class="flex flex-col overflow-hidden">
+                  <span class="font-bold text-on-surface truncate">{kp().name}</span>
+                  <span class="text-xs text-muted-gray">{kp().stocks.length} assets</span>
+                </div>
+              </div>
+            )}
+          </Show>
+
           <For
             each={portfolios()}
             fallback={<div class="p-4 text-sm text-muted-gray italic text-center">No portfolios found.</div>}
@@ -219,12 +273,14 @@ export default function PortfoliosPage() {
                   <div class="xl:col-span-1 border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                     <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
                       <span>Holdings</span>
-                      <button
-                        onClick={() => setIsAddingStock(!isAddingStock())}
-                        class="text-xs bg-primary text-on-primary px-2 py-1 rounded hover:bg-primary-container hover:text-on-primary-container transition-colors"
-                      >
-                        {isAddingStock() ? 'Cancel' : '+ Add Stock'}
-                      </button>
+                      <Show when={!p().isKite}>
+                        <button
+                          onClick={() => setIsAddingStock(!isAddingStock())}
+                          class="text-xs bg-primary text-on-primary px-2 py-1 rounded hover:bg-primary-container hover:text-on-primary-container transition-colors"
+                        >
+                          {isAddingStock() ? 'Cancel' : '+ Add Stock'}
+                        </button>
+                      </Show>
                     </div>
 
                     <Show when={isAddingStock()}>
@@ -271,18 +327,31 @@ export default function PortfoliosPage() {
                   </div>
 
                   {/* Charting Pane */}
-                  <div class="xl:col-span-2 border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
-                    <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
-                      <span>Simulated Equity Curve</span>
-                      <div class="flex gap-1 text-xs">
-                        <button onClick={() => setTimeframe('1Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '1Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>1Y</button>
-                        <button onClick={() => setTimeframe('5Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '5Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>5Y</button>
-                        <button onClick={() => setTimeframe('MAX')} class={`px-2 py-1 rounded transition-colors ${timeframe() === 'MAX' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>MAX</button>
+                  <div class="xl:col-span-2 flex flex-col gap-6">
+                    <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
+                      <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
+                        <span>{p().isKite ? "Simulated SIP Strategy (₹1,000/mo)" : "Simulated Equity Curve"}</span>
+                        <div class="flex gap-1 text-xs">
+                          <button onClick={() => setTimeframe('1Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '1Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>1Y</button>
+                          <button onClick={() => setTimeframe('5Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '5Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>5Y</button>
+                          <button onClick={() => setTimeframe('MAX')} class={`px-2 py-1 rounded transition-colors ${timeframe() === 'MAX' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>MAX</button>
+                        </div>
+                      </div>
+                      <div class="flex-1 flex flex-col overflow-hidden relative">
+                        <PortfolioEquityChart equityCurve={sim.equityCurve()} stockCurves={sim.stockCurves()} />
                       </div>
                     </div>
-                    <div class="flex-1 flex flex-col overflow-hidden relative">
-                      <PortfolioEquityChart equityCurve={sim.equityCurve()} stockCurves={sim.stockCurves()} />
-                    </div>
+
+                    <Show when={p().isKite}>
+                      <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
+                        <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
+                          <span>Tradebook Execution Curve (Exact)</span>
+                        </div>
+                        <div class="flex-1 flex flex-col overflow-hidden relative">
+                          <PortfolioEquityChart equityCurve={simExact.equityCurve()} stockCurves={simExact.stockCurves()} tradeHistory={p().tradeHistory} />
+                        </div>
+                      </div>
+                    </Show>
                   </div>
                 </div>
 

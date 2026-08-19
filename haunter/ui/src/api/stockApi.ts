@@ -204,6 +204,8 @@ export interface Portfolio {
   name: string;
   stocks: PortfolioStock[];
   createdAt: string;
+  isKite?: boolean;
+  tradeHistory?: KiteTrade[];
 }
 
 export async function fetchPortfolios(): Promise<Portfolio[]> {
