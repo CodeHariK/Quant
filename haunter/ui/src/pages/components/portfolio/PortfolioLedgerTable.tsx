@@ -28,6 +28,7 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       header: 'Symbol',
       accessor: 'symbol',
       cell: (row) => <Text variant="code" class="font-bold text-primary">{row.symbol}</Text>,
+      aggregate: 'count',
     },
     {
       header: 'Start Qty',
@@ -40,18 +41,24 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       align: 'right',
       cell: (row) => <span class="text-on-surface-variant">{formatCurrency(row.sipAmount)}</span>,
       sortValue: (row) => row.sipAmount,
+      aggregate: 'sum',
+      aggregateFormatter: formatCurrency,
     },
     {
       header: 'Total Invested',
       align: 'right',
       cell: (row) => <span>{formatCurrency(row.totalInvested)}</span>,
       sortValue: (row) => row.totalInvested,
+      aggregate: 'sum',
+      aggregateFormatter: formatCurrency,
     },
     {
       header: 'Current Value',
       align: 'right',
       cell: (row) => <span class="font-medium text-on-surface">{formatCurrency(row.currentValue)}</span>,
       sortValue: (row) => row.currentValue,
+      aggregate: 'sum',
+      aggregateFormatter: formatCurrency,
     },
     {
       header: 'Current Qty',
@@ -72,6 +79,17 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
         );
       },
       sortValue: (row) => calculateReturn(row.currentValue, row.totalInvested),
+      aggregate: (data: StockSummary[]) => {
+        const totalInvested = data.reduce((sum, row) => sum + row.totalInvested, 0);
+        const totalCurrent = data.reduce((sum, row) => sum + row.currentValue, 0);
+        const absReturn = calculateReturn(totalCurrent, totalInvested);
+        const isPositive = absReturn >= 0;
+        return (
+          <span class={`font-bold ${isPositive ? 'text-secondary-container' : 'text-critical-red'}`}>
+            {isPositive ? '+' : ''}{absReturn.toFixed(2)}%
+          </span>
+        );
+      }
     },
     {
       header: 'Period Return',
@@ -94,6 +112,7 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       <Table
         columns={columns}
         data={props.stockBreakdown}
+        showSummary={true}
         onRowClick={(row) => navigate(`/ticker?symbol=${encodeURIComponent(row.symbol)}`)}
       />
     </div>

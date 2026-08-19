@@ -197,6 +197,7 @@ export interface PortfolioStock {
   symbol: string;
   initialQuantity: number;
   sipAmount: number;
+  currentQuantity?: number;
 }
 
 export interface Portfolio {

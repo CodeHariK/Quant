@@ -43,7 +43,8 @@ export default function PortfoliosPage() {
           stocks: kiteData.holdings.map(h => ({
             symbol: h.tradingsymbol.endsWith('.NS') ? h.tradingsymbol : `${h.tradingsymbol}.NS`,
             initialQuantity: 0,
-            sipAmount: 1000
+            sipAmount: 0, // dynamic SIP logic will override this
+            currentQuantity: h.quantity
           }))
         };
         setKitePortfolio(kp);
@@ -330,7 +331,7 @@ export default function PortfoliosPage() {
                   <div class="xl:col-span-2 flex flex-col gap-6">
                     <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                       <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
-                        <span>{p().isKite ? "Simulated SIP Strategy (₹1,000/mo)" : "Simulated Equity Curve"}</span>
+                        <span>{p().isKite ? "Weighted SIP Strategy (₹10,000/mo)" : "Simulated Equity Curve"}</span>
                         <div class="flex gap-1 text-xs">
                           <button onClick={() => setTimeframe('1Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '1Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>1Y</button>
                           <button onClick={() => setTimeframe('5Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '5Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>5Y</button>

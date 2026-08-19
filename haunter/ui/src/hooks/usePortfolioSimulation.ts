@@ -98,6 +98,31 @@ export function usePortfolioSimulation(
       const currentQty: Record<string, number> = {};
       const lastKnownPrice: Record<string, number> = {};
       const stockInvested: Record<string, number> = {};
+      
+      // Calculate Weighted SIP amounts for Kite
+      const GLOBAL_SIP_AMOUNT = 10000;
+      const stockWeightedSip: Record<string, number> = {};
+      if (p.isKite) {
+        let totalPortfolioCurrentValue = 0;
+        const stockCurrentValues: Record<string, number> = {};
+        results.forEach(res => {
+          const sym = res.stock.symbol;
+          const qty = res.stock.currentQuantity || 0;
+          const history = res.history;
+          const latestPrice = history.length > 0 ? history[history.length - 1].close : 0;
+          const val = qty * latestPrice;
+          stockCurrentValues[sym] = val;
+          totalPortfolioCurrentValue += val;
+        });
+
+        if (totalPortfolioCurrentValue > 0) {
+          results.forEach(res => {
+            const sym = res.stock.symbol;
+            const weight = stockCurrentValues[sym] / totalPortfolioCurrentValue;
+            stockWeightedSip[sym] = GLOBAL_SIP_AMOUNT * weight;
+          });
+        }
+      }
       let lastMonthStr = "";
       let runningInvested = 0;
 
@@ -176,11 +201,17 @@ export function usePortfolioSimulation(
              lastKnownPrice[sym] = priceToday;
           }
 
-          if (simMode === 'MANUAL' && isNewMonth && res.stock.sipAmount > 0 && lastKnownPrice[sym] > 0) {
-            const sharesBought = res.stock.sipAmount / lastKnownPrice[sym];
-            currentQty[sym] += sharesBought;
-            stockInvested[sym] += res.stock.sipAmount;
-            runningInvested += res.stock.sipAmount;
+          if (simMode === 'MANUAL' && isNewMonth && lastKnownPrice[sym] > 0) {
+            let sipAmt = res.stock.sipAmount;
+            if (p.isKite && stockWeightedSip[sym] !== undefined) {
+               sipAmt = stockWeightedSip[sym];
+            }
+            if (sipAmt > 0) {
+               const sharesBought = sipAmt / lastKnownPrice[sym];
+               currentQty[sym] += sharesBought;
+               stockInvested[sym] += sipAmt;
+               runningInvested += sipAmt;
+            }
           }
 
           const dailyStockValue = currentQty[sym] * lastKnownPrice[sym];
@@ -202,11 +233,16 @@ export function usePortfolioSimulation(
         const firstPrice = priceMaps[sym].get(filteredDates[0]) || 0;
         const lastPrice = lastKnownPrice[sym] || 0;
         const lumpsumReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+        
+        let displaySip = res.stock.sipAmount;
+        if (p.isKite && stockWeightedSip[sym] !== undefined && simMode === 'MANUAL') {
+          displaySip = stockWeightedSip[sym];
+        }
 
         return {
           symbol: sym,
           initialQuantity: res.stock.initialQuantity,
-          sipAmount: res.stock.sipAmount,
+          sipAmount: displaySip,
           totalInvested: stockInvested[sym],
           currentValue: currentQty[sym] * lastKnownPrice[sym],
           currentQty: currentQty[sym],
