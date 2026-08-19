@@ -62,6 +62,9 @@ func InitStore() (*Store, error) {
 		if _, err := tx.CreateBucketIfNotExists([]byte(config.TradebookBucket)); err != nil {
 			return err
 		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(config.PortfoliosBucket)); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -366,3 +369,67 @@ func (s *Store) GetTradebookRecords(yearFilter int) ([]TradebookRecord, []int, e
 
 	return records, years, err
 }
+
+// --- PORTFOLIOS ---
+
+type PortfolioStock struct {
+	Symbol          string  `json:"symbol"`
+	InitialQuantity float64 `json:"initialQuantity"`
+	SIPAmount       float64 `json:"sipAmount"` // e.g. 1000 rupees per month
+}
+
+type Portfolio struct {
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	Stocks    []PortfolioStock `json:"stocks"`
+	CreatedAt time.Time        `json:"createdAt"`
+}
+
+// GetPortfolios retrieves all custom portfolios from BoltDB
+func (s *Store) GetPortfolios() ([]Portfolio, error) {
+	var portfolios []Portfolio
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(config.PortfoliosBucket))
+		if b == nil {
+			return nil
+		}
+
+		return b.ForEach(func(k, v []byte) error {
+			var p Portfolio
+			if err := json.Unmarshal(v, &p); err == nil {
+				portfolios = append(portfolios, p)
+			}
+			return nil
+		})
+	})
+	return portfolios, err
+}
+
+// SavePortfolio saves a portfolio to BoltDB (creates or updates)
+func (s *Store) SavePortfolio(p *Portfolio) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(config.PortfoliosBucket))
+		if b == nil {
+			return fmt.Errorf("portfolios bucket not found")
+		}
+
+		data, err := json.Marshal(p)
+		if err != nil {
+			return err
+		}
+
+		return b.Put([]byte(p.ID), data)
+	})
+}
+
+// DeletePortfolio removes a portfolio from BoltDB by ID
+func (s *Store) DeletePortfolio(id string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(config.PortfoliosBucket))
+		if b == nil {
+			return fmt.Errorf("portfolios bucket not found")
+		}
+		return b.Delete([]byte(id))
+	})
+}
+

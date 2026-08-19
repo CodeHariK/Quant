@@ -51,6 +51,12 @@ declare module "virtual:file-routes" {
       $$route?: undefined;
     },
     {
+      path: "/portfolios";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./src/pages/portfolios")>;
+      $$route?: undefined;
+    },
+    {
       path: "/ticker";
       page: true;
       $component: FileRouteLazyRef<typeof import("./src/pages/ticker")>;
@@ -96,6 +102,14 @@ declare module "virtual:file-routes" {
       id: "/tradebook";
       page: true;
       $component: FileRouteLazyRef<typeof import("./src/pages/tradebook")>;
+      $$route?: undefined;
+      children?: undefined;
+    },
+    {
+      path: "/portfolios";
+      id: "/portfolios";
+      page: true;
+      $component: FileRouteLazyRef<typeof import("./src/pages/portfolios")>;
       $$route?: undefined;
       children?: undefined;
     },

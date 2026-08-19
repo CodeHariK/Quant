@@ -11,6 +11,7 @@ const (
 	KitePortfolioBucket = "KitePortfolio"
 	KitePortfolioKey   = "user_kite_portfolio"
 	TradebookBucket    = "TradebookRecords"
+	PortfoliosBucket   = "Portfolios"
 )
 
 // Financial Quantitative Calculation Constants

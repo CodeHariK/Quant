@@ -1,6 +1,7 @@
 import { onCleanup, createEffect, createSignal, createMemo, Show } from 'solid-js';
 import { createChart, IChartApi, CandlestickSeries, HistogramSeries, LineSeries, Time, Logical } from 'lightweight-charts';
 import type { HistoryBar } from '../../../types/events';
+import { useTheme } from '../../../store/themeStore';
 import { calculateSMA, calculateEMA, calculateBollingerBands, calculateMACD } from '../../../utils/technicalIndicators';
 
 export interface TickerPriceChartProps {
@@ -21,6 +22,7 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
   const [showSMA, setShowSMA] = createSignal(false);
   const [showEMA, setShowEMA] = createSignal(false);
   const [showMACD, setShowMACD] = createSignal(false);
+  const { theme } = useTheme();
 
   // Process data reactively
   const processedData = createMemo(() => {
@@ -78,8 +80,8 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
     mainChart = createChart(el, {
       autoSize: true,
       layout: {
-        background: { color: '#ffffff' },
-        textColor: '#1a1c1c',
+        background: { color: 'transparent' },
+        textColor: theme() === 'dark' ? '#f1f1f1' : '#1a1c1c',
         fontFamily: 'JetBrains Mono, monospace',
       },
       handleScroll: {
@@ -89,14 +91,14 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
         mouseWheel: true,
       },
       grid: {
-        vertLines: { color: '#f0f0f0' },
-        horzLines: { color: '#f0f0f0' },
+        vertLines: { color: theme() === 'dark' ? '#2d3030' : '#f0f0f0' },
+        horzLines: { color: theme() === 'dark' ? '#2d3030' : '#f0f0f0' },
       },
       rightPriceScale: {
-        borderColor: '#000000',
+        borderColor: theme() === 'dark' ? '#544c4d' : '#000000',
       },
       timeScale: {
-        borderColor: '#000000',
+        borderColor: theme() === 'dark' ? '#544c4d' : '#000000',
         timeVisible: false,
       },
     });
@@ -143,6 +145,20 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
       bbUpper.applyOptions({ visible: bb as boolean });
       bbMiddle.applyOptions({ visible: bb as boolean });
       bbLower.applyOptions({ visible: bb as boolean });
+    });
+
+
+    // Theme effect
+    createEffect(() => theme(), (currentTheme) => {
+      const isDark = currentTheme === 'dark';
+      const options = {
+        layout: { textColor: isDark ? '#f1f1f1' : '#1a1c1c' },
+        grid: { vertLines: { color: isDark ? '#2d3030' : '#f0f0f0' }, horzLines: { color: isDark ? '#2d3030' : '#f0f0f0' } },
+        rightPriceScale: { borderColor: isDark ? '#544c4d' : '#000000' },
+        timeScale: { borderColor: isDark ? '#544c4d' : '#000000' }
+      };
+      if (mainChart) mainChart.applyOptions(options);
+      if (macdChart) macdChart.applyOptions(options);
     });
 
     // --- CUSTOM INTERACTION LOGIC ---
@@ -288,8 +304,8 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
     macdChart = createChart(el, {
       autoSize: true,
       layout: {
-        background: { color: '#ffffff' },
-        textColor: '#1a1c1c',
+        background: { color: 'transparent' },
+        textColor: theme() === 'dark' ? '#f1f1f1' : '#1a1c1c',
         fontFamily: 'JetBrains Mono, monospace',
       },
       handleScroll: {
@@ -299,14 +315,14 @@ export function TickerPriceChart(props: TickerPriceChartProps) {
         mouseWheel: false,
       },
       grid: {
-        vertLines: { color: '#f0f0f0' },
-        horzLines: { color: '#f0f0f0' },
+        vertLines: { color: theme() === 'dark' ? '#2d3030' : '#f0f0f0' },
+        horzLines: { color: theme() === 'dark' ? '#2d3030' : '#f0f0f0' },
       },
       rightPriceScale: {
-        borderColor: '#000000',
+        borderColor: theme() === 'dark' ? '#544c4d' : '#000000',
       },
       timeScale: {
-        borderColor: '#000000',
+        borderColor: theme() === 'dark' ? '#544c4d' : '#000000',
         timeVisible: false,
       },
     });

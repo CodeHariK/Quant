@@ -120,6 +120,65 @@ func main() {
 		}
 	})
 
+	// Custom Portfolios Management REST Endpoints on /api/portfolios
+	http.HandleFunc("/api/portfolios", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			list, err := st.GetPortfolios()
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			if list == nil {
+				list = []store.Portfolio{}
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"portfolios": list})
+
+		case http.MethodPost:
+			var req store.Portfolio
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" {
+				http.Error(w, `{"error": "invalid payload, expected id and name fields"}`, http.StatusBadRequest)
+				return
+			}
+			if req.CreatedAt.IsZero() {
+				req.CreatedAt = time.Now()
+			}
+			if req.Stocks == nil {
+				req.Stocks = []store.PortfolioStock{}
+			}
+			if err := st.SavePortfolio(&req); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"portfolio": req, "message": "Portfolio saved successfully"})
+
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if id == "" {
+				http.Error(w, `{"error": "id query parameter required"}`, http.StatusBadRequest)
+				return
+			}
+			if err := st.DeletePortfolio(id); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "Portfolio deleted successfully"})
+
+		default:
+			http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
 	// 3. KiteConnect Portfolio & Trade History REST Endpoint
 	http.HandleFunc("/api/kite/portfolio", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -157,7 +216,31 @@ func main() {
 		json.NewEncoder(w).Encode(report)
 	})
 
-	// 4. KiteConnect OAuth Callback & Session Generation Endpoint
+	// 4. KiteConnect GTT Orders REST Endpoint
+	http.HandleFunc("/api/kite/gtt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		gtts, err := fetcher.FetchKiteGTTs()
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"gtts":  gtts,
+			"count": len(gtts),
+		})
+	})
+
+	// 5. KiteConnect OAuth Callback & Session Generation Endpoint
 	http.HandleFunc("/api/kite/session", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS")

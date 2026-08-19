@@ -231,3 +231,20 @@ func GenerateKiteSession(apiKey string, apiSecret string, requestToken string) (
 
 	return stData, nil
 }
+
+// FetchKiteGTTs retrieves all active and historical GTT trigger orders from Zerodha KiteConnect
+func FetchKiteGTTs() ([]kiteconnect.GTT, error) {
+	kc, err := GetKiteClient()
+	if err != nil {
+		return nil, err
+	}
+
+	gtts, err := kc.GetGTTs()
+	if err != nil {
+		log.Printf("⚠️ Failed to fetch Kite GTT orders: %v\n", err)
+		return nil, fmt.Errorf("failed to fetch GTT orders: %w", err)
+	}
+
+	return gtts, nil
+}
+

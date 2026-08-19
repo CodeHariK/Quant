@@ -9,6 +9,7 @@ export function TopNavBar() {
     { label: 'LEADERBOARD', path: '/leaderboard' },
     { label: 'TICKER', path: '/ticker' },
     { label: 'TRADEBOOK', path: '/tradebook' },
+    { label: 'PORTFOLIOS', path: '/portfolios' },
   ];
 
   return (
