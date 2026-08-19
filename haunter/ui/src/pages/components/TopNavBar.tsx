@@ -16,7 +16,7 @@ export function TopNavBar() {
     <header class="bg-surface border-b border-primary w-full px-8 h-16 flex justify-between items-center sticky top-0 z-50">
       <div class="flex items-center gap-8">
         <a href="/" class="font-headline-md text-headline-md font-bold uppercase tracking-tighter text-primary">
-          ALPHA ARENA
+          Haunter
         </a>
         <nav class="hidden md:flex items-center gap-6">
           {navItems.map((item) => {

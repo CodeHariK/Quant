@@ -1,4 +1,3 @@
-import { Title } from '@solidjs/meta';
 import { createSignal, createEffect, For } from 'solid-js';
 import { PageLayout } from '../pages/components/PageLayout';
 import { Card } from '../primitives/Card';
@@ -123,8 +122,7 @@ export default function Tradebook() {
   ];
 
   return (
-    <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
-      <Title>Alpha Arena - Historical Tradebook Ledger</Title>
+    <PageLayout title="Historical Tradebook Ledger">
 
       {/* Header Bar */}
       <header class="border border-outline-variant bg-surface p-6 relative">

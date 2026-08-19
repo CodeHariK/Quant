@@ -1,12 +1,10 @@
-import { Title } from '@solidjs/meta';
 import { PageLayout } from '../pages/components/PageLayout';
 import { LeaderboardTable } from '../pages/components/LeaderboardTable';
 import { Text } from '../primitives/Text';
 
 export default function Leaderboard() {
   return (
-    <PageLayout showSidebar={false}>
-      <Title>Alpha Arena - Leaderboard</Title>
+    <PageLayout title="Leaderboard">
 
       <header class="mb-8">
         <Text variant="h1" class="text-5xl tracking-tighter mb-6 block">LEADERBOARD</Text>

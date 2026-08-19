@@ -1,13 +1,8 @@
-import { Title } from '@solidjs/meta';
 import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
 import { PageLayout } from '../pages/components/PageLayout';
-import { Card } from '../primitives/Card';
 import { WatchlistModal } from '../pages/components/WatchlistModal';
 import { ChipColor } from '../primitives/Chip';
-import { Table } from '../primitives/Table';
-import { Chip } from '../primitives/Chip';
-import { Input, FilledButton, OutlineButton } from '../primitives/FormControls';
 import { FinancialStatementViewer } from '../pages/components/FinancialStatementViewer';
 import { Text } from '../primitives/Text';
 import { fetchValuationReport, fetchWatchlist, addToWatchlist, removeFromWatchlist } from '../api/stockApi';
@@ -142,8 +137,7 @@ export default function Ticker() {
   };
 
   return (
-    <PageLayout showSidebar={false} mainClass="flex-grow p-8 max-w-[1600px] mx-auto w-full">
-      <Title>{`${selectedSymbol()} - Stock Report & Financial Statement Analysis`}</Title>
+    <PageLayout title={`${selectedSymbol()} - Stock Report`}>
 
       {loading() && <Text variant="muted" class="mb-4 block animate-pulse">Loading valuation report from BoltDB cache...</Text>}
       {error() && <Text status="error" class="mb-4 block">{error()}</Text>}

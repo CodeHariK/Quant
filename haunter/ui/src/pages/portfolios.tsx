@@ -1,5 +1,4 @@
 import { createSignal, Show, For } from 'solid-js';
-import { Title } from '@solidjs/meta';
 import {
   Portfolio,
   PortfolioStock,
@@ -126,14 +125,13 @@ export default function PortfoliosPage() {
   };
 
   return (
-    <PageLayout showSidebar={false} mainClass="flex-1 flex flex-col md:flex-row overflow-hidden bg-surface text-on-surface p-0">
-      <Title>Portfolios - Haunter</Title>
+    <PageLayout title="Portfolio" mainClass="flex-1 flex flex-col md:flex-row overflow-hidden p-0">
 
       {/* Sidebar - Portfolio List */}
       <div class="w-full md:w-64 border-r border-outline flex flex-col h-full bg-surface-container">
         <div class="p-4 border-b border-outline flex justify-between items-center">
           <h2 class="text-lg font-semibold tracking-tight text-on-surface">Portfolios</h2>
-          <button 
+          <button
             onClick={() => setIsCreating(true)}
             class="text-xs bg-surface-container-highest hover:bg-surface-variant text-on-surface px-2 py-1 rounded transition-colors"
           >
@@ -143,8 +141,8 @@ export default function PortfoliosPage() {
 
         <Show when={isCreating()}>
           <form onSubmit={handleCreatePortfolio} class="p-4 border-b border-outline bg-surface-container-high">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={newPortfolioName()}
               onInput={(e) => setNewPortfolioName(e.currentTarget.value)}
               placeholder="Portfolio Name"
@@ -152,15 +150,15 @@ export default function PortfoliosPage() {
               autofocus
             />
             <div class="flex gap-2 justify-end">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsCreating(false)}
                 class="text-xs text-muted-gray hover:text-on-surface"
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 class="text-xs bg-primary text-on-primary px-3 py-1 rounded font-medium hover:bg-primary-container hover:text-on-primary-container"
               >
                 Create
@@ -170,12 +168,12 @@ export default function PortfoliosPage() {
         </Show>
 
         <div class="flex-1 overflow-y-auto">
-          <For 
-            each={portfolios()} 
+          <For
+            each={portfolios()}
             fallback={<div class="p-4 text-sm text-muted-gray italic text-center">No portfolios found.</div>}
           >
             {(p) => (
-              <div 
+              <div
                 onClick={() => setSelectedPortfolioId(p.id)}
                 class={`p-3 border-b border-outline-variant cursor-pointer flex justify-between items-center group transition-colors ${selectedPortfolioId() === p.id ? 'bg-white/10 border-l-2 border-l-[#4B9CFF]' : 'hover:bg-surface-container-low'}`}
               >
@@ -183,7 +181,7 @@ export default function PortfoliosPage() {
                   <span class="text-sm font-medium text-on-surface truncate">{p.name}</span>
                   <span class="text-xs text-muted-gray">{p.stocks?.length || 0} stocks</span>
                 </div>
-                <button 
+                <button
                   onClick={(e) => handleDeletePortfolio(p.id, e)}
                   class="text-outline hover:text-critical-red opacity-0 group-hover:opacity-100 transition-all ml-2"
                   title="Delete Portfolio"
@@ -198,8 +196,8 @@ export default function PortfoliosPage() {
 
       {/* Main Content Area */}
       <div class="flex-1 flex flex-col h-full bg-surface overflow-hidden">
-        <Show 
-          when={selectedPortfolio()} 
+        <Show
+          when={selectedPortfolio()}
           fallback={
             <div class="flex-1 flex items-center justify-center text-muted-gray">
               Select or create a portfolio to view details.
@@ -214,21 +212,21 @@ export default function PortfoliosPage() {
                   <p class="text-sm text-muted-gray mt-1">Manage stocks and simulate SIP performance</p>
                 </div>
               </div>
-              
+
               <div class="flex-1 overflow-y-auto p-6">
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   {/* Stocks Management Pane */}
                   <div class="xl:col-span-1 border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                     <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
                       <span>Holdings</span>
-                      <button 
+                      <button
                         onClick={() => setIsAddingStock(!isAddingStock())}
                         class="text-xs bg-primary text-on-primary px-2 py-1 rounded hover:bg-primary-container hover:text-on-primary-container transition-colors"
                       >
                         {isAddingStock() ? 'Cancel' : '+ Add Stock'}
                       </button>
                     </div>
-                    
+
                     <Show when={isAddingStock()}>
                       <form onSubmit={(e) => handleAddStock(p(), e)} class="p-4 border-b border-outline bg-surface-container-high flex flex-col gap-2 shrink-0">
                         <div class="flex flex-col gap-1">
@@ -261,7 +259,7 @@ export default function PortfoliosPage() {
                                 <span>SIP: ₹{stock.sipAmount}/mo</span>
                               </div>
                             </div>
-                            <button 
+                            <button
                               onClick={() => handleRemoveStock(p(), stock.symbol)}
                               class="text-muted-gray hover:text-critical-red transition-colors"
                               title="Remove"
@@ -283,11 +281,11 @@ export default function PortfoliosPage() {
                       </div>
                     </div>
                     <div class="flex-1 flex flex-col overflow-hidden relative">
-                       <PortfolioEquityChart equityCurve={sim.equityCurve()} />
+                      <PortfolioEquityChart equityCurve={sim.equityCurve()} />
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Ledger Table */}
                 <PortfolioLedgerTable stockBreakdown={sim.stockBreakdown()} />
               </div>
