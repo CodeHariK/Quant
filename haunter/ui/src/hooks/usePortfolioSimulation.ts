@@ -16,6 +16,7 @@ export interface StockSummary {
   currentValue: number;
   currentQty: number;
   lumpsumReturn: number;
+  targetWeight?: number;
 }
 
 export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
@@ -396,14 +397,18 @@ export function usePortfolioSimulation(
           displaySip = stockDynamicSip[sym];
         }
 
+        const actualQty = p.isKite ? (res.stock.currentQuantity || res.stock.initialQuantity || 0) : currentQty[sym];
+        const actualInvested = p.isKite && res.stock.averagePrice ? actualQty * res.stock.averagePrice : stockInvested[sym];
+
         return {
           symbol: sym,
           initialQuantity: res.stock.initialQuantity,
           sipAmount: displaySip,
-          totalInvested: stockInvested[sym],
-          currentValue: currentQty[sym] * lastKnownPrice[sym],
-          currentQty: currentQty[sym],
+          totalInvested: actualInvested,
+          currentValue: actualQty * lastKnownPrice[sym],
+          currentQty: actualQty,
           lumpsumReturn,
+          targetWeight: p.isKite && stockDynamicSip[sym] !== undefined ? stockDynamicSip[sym] / 10000 : undefined,
         };
       }).filter(s => s.currentQty > 0);
 

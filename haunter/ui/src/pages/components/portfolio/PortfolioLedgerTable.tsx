@@ -21,6 +21,8 @@ interface PortfolioLedgerTableProps {
 export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
   const navigate = useNavigate();
 
+  const totalPortfolioValue = () => props.stockBreakdown.reduce((sum, s) => sum + s.currentValue, 0);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -72,6 +74,28 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
       aggregateFormatter: formatCurrency,
     },
     {
+      header: 'Target Investment',
+      align: 'right',
+      cell: (row) => {
+        if (row.targetWeight === undefined) return <span class="text-on-surface-variant">-</span>;
+        const target = row.targetWeight * totalPortfolioValue();
+        const diff = row.totalInvested - target;
+        return (
+          <div class="flex flex-col items-end">
+             <span class="font-medium text-on-surface" title="Ideal investment based on current SIP strategy">{formatCurrency(target)}</span>
+             <span class={`text-[10px] ${diff > 0 ? 'text-amber-500' : 'text-primary'}`} title="Difference from target">
+               {diff > 0 ? 'Over: +' : 'Under: '}{formatCurrency(diff)}
+             </span>
+          </div>
+        );
+      },
+      sortValue: (row) => row.targetWeight ? row.targetWeight * totalPortfolioValue() : 0,
+      aggregate: (data: StockSummary[]) => {
+         const totalTarget = data.reduce((sum, row) => sum + (row.targetWeight ? row.targetWeight * totalPortfolioValue() : 0), 0);
+         return formatCurrency(totalTarget);
+      }
+    },
+    {
       header: 'Current Qty',
       align: 'right',
       cell: (row) => <span class="text-on-surface-variant">{row.currentQty.toFixed(2)}</span>,
@@ -114,6 +138,16 @@ export function PortfolioLedgerTable(props: PortfolioLedgerTableProps) {
         );
       },
       sortValue: (row) => row.lumpsumReturn,
+      aggregate: (data: StockSummary[]) => {
+        const totalReturn = data.reduce((sum, row) => sum + row.lumpsumReturn, 0);
+        const isPositive = totalReturn >= 0;
+        
+        return (
+          <span class={`font-bold ${isPositive ? 'text-secondary-container' : 'text-critical-red'}`}>
+            {isPositive ? '+' : ''}{totalReturn.toFixed(2)}%
+          </span>
+        );
+      }
     },
     ...(props.isKite ? [] : [{
       header: '',

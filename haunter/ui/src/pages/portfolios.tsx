@@ -62,7 +62,8 @@ export default function PortfoliosPage() {
             symbol: h.tradingsymbol.endsWith('.NS') ? h.tradingsymbol : `${h.tradingsymbol}.NS`,
             initialQuantity: 0,
             sipAmount: 0,
-            currentQuantity: h.quantity
+            currentQuantity: h.quantity,
+            averagePrice: h.averagePrice
           }))
         };
         setKitePortfolio(kp);
@@ -79,7 +80,7 @@ export default function PortfoliosPage() {
 
   // Chart state
   const { timeframe } = useAppStore();
-  const [sipDistribution, setSipDistribution] = createSignal<'WEIGHTED' | 'EQUAL' | 'RETURN_WEIGHTED'>('WEIGHTED');
+  const [sipDistribution, setSipDistribution] = createSignal<'WEIGHTED' | 'EQUAL' | 'RETURN_WEIGHTED'>('RETURN_WEIGHTED');
 
   // Simulation
   const sim = usePortfolioSimulation(

@@ -198,6 +198,7 @@ export interface PortfolioStock {
   initialQuantity: number;
   sipAmount: number;
   currentQuantity?: number;
+  averagePrice?: number;
 }
 
 export interface Portfolio {
