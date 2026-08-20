@@ -5,9 +5,11 @@ import {
   fetchPortfolios,
   savePortfolio,
   deletePortfolio,
-  fetchKitePortfolio
+  fetchKitePortfolio,
+  fetchTradebookRecords
 } from '../api/stockApi';
 import { PortfolioEquityChart } from './components/portfolio/PortfolioEquityChart';
+import { useAppStore } from '../store/appStore';
 import { PortfolioLedgerTable } from './components/portfolio/PortfolioLedgerTable';
 import { PageLayout } from './components/PageLayout';
 import { usePortfolioSimulation } from '../hooks/usePortfolioSimulation';
@@ -32,18 +34,33 @@ export default function PortfoliosPage() {
     }
     
     try {
-      const kiteData = await fetchKitePortfolio();
+      const [kiteData, tradebookRes] = await Promise.all([
+        fetchKitePortfolio().catch(() => null),
+        fetchTradebookRecords().catch(() => ({ records: [] }))
+      ]);
+
       if (kiteData && kiteData.holdings) {
+        const historicalTrades = (tradebookRes.records || []).map(r => ({
+          tradeId: r.tradeId,
+          orderId: r.orderId,
+          exchange: r.exchange,
+          tradingsymbol: r.symbol,
+          transactionType: (r.transactionType || '').toUpperCase() as 'BUY' | 'SELL',
+          quantity: r.quantity,
+          averagePrice: r.price,
+          tradeTimestamp: r.tradeDate
+        }));
+
         const kp: Portfolio = {
           id: 'kite-live',
           name: '🎯 Kite Portfolio (Live)',
           createdAt: kiteData.fetchedAt || new Date().toISOString(),
           isKite: true,
-          tradeHistory: kiteData.tradeHistory || [],
+          tradeHistory: historicalTrades.length > 0 ? historicalTrades : (kiteData.tradeHistory || []),
           stocks: kiteData.holdings.map(h => ({
             symbol: h.tradingsymbol.endsWith('.NS') ? h.tradingsymbol : `${h.tradingsymbol}.NS`,
             initialQuantity: 0,
-            sipAmount: 0, // dynamic SIP logic will override this
+            sipAmount: 0,
             currentQuantity: h.quantity
           }))
         };
@@ -52,7 +69,6 @@ export default function PortfoliosPage() {
         setKitePortfolio(null);
       }
     } catch (e) {
-       // Ignore, user might not be logged in to kite
        setKitePortfolio(null);
     }
   };
@@ -61,19 +77,25 @@ export default function PortfoliosPage() {
   refetch();
 
   // Chart state
-  const [timeframe, setTimeframe] = createSignal<'1Y' | '5Y' | 'MAX'>('1Y');
+  const { timeframe } = useAppStore();
+  const [sipDistribution, setSipDistribution] = createSignal<'WEIGHTED' | 'EQUAL'>('WEIGHTED');
 
   // Simulation
   const sim = usePortfolioSimulation(
     selectedPortfolio, 
     timeframe, 
-    () => 'MANUAL'
+    () => 'MANUAL',
+    sipDistribution
   );
+
+  const [clusterBy, setClusterBy] = createSignal<'day' | 'week' | 'month'>('week');
 
   const simExact = usePortfolioSimulation(
     () => selectedPortfolio()?.isKite ? selectedPortfolio() : undefined,
     timeframe,
-    () => 'TRADEBOOK_EXACT'
+    () => 'TRADEBOOK_EXACT',
+    () => 'WEIGHTED',
+    clusterBy
   );
 
   // Create new portfolio state
@@ -270,76 +292,32 @@ export default function PortfoliosPage() {
 
               <div class="flex-1 overflow-y-auto p-6">
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Stocks Management Pane */}
-                  <div class="xl:col-span-1 border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
-                    <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
-                      <span>Holdings</span>
-                      <Show when={!p().isKite}>
-                        <button
-                          onClick={() => setIsAddingStock(!isAddingStock())}
-                          class="text-xs bg-primary text-on-primary px-2 py-1 rounded hover:bg-primary-container hover:text-on-primary-container transition-colors"
-                        >
-                          {isAddingStock() ? 'Cancel' : '+ Add Stock'}
-                        </button>
-                      </Show>
-                    </div>
-
-                    <Show when={isAddingStock()}>
-                      <form onSubmit={(e) => handleAddStock(p(), e)} class="p-4 border-b border-outline bg-surface-container-high flex flex-col gap-2 shrink-0">
-                        <div class="flex flex-col gap-1">
-                          <label class="text-xs text-muted-gray">Symbol</label>
-                          <input type="text" required placeholder="e.g. RELIANCE.NS" value={newSymbol()} onInput={e => setNewSymbol(e.currentTarget.value)} class="bg-surface text-on-surface border border-outline rounded px-2 py-1 text-sm outline-none focus:border-primary" />
-                        </div>
-                        <div class="flex gap-2">
-                          <div class="flex flex-col gap-1 flex-1">
-                            <label class="text-xs text-muted-gray">Start Qty</label>
-                            <input type="number" min="0" step="0.01" value={newQty()} onInput={e => setNewQty(parseFloat(e.currentTarget.value) || 0)} class="bg-surface text-on-surface border border-outline rounded px-2 py-1 text-sm outline-none focus:border-primary" />
-                          </div>
-                          <div class="flex flex-col gap-1 flex-1">
-                            <label class="text-xs text-muted-gray">SIP/Mo (₹)</label>
-                            <input type="number" min="0" value={newSip()} onInput={e => setNewSip(parseFloat(e.currentTarget.value) || 0)} class="bg-surface text-on-surface border border-outline rounded px-2 py-1 text-sm outline-none focus:border-primary" />
-                          </div>
-                        </div>
-                        <button type="submit" class="mt-2 text-xs bg-on-surface text-surface px-3 py-1.5 rounded font-medium hover:bg-outline-variant transition-colors w-full">Save Holding</button>
-                      </form>
-                    </Show>
-
-                    <div class="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
-                      <For each={p().stocks} fallback={<div class="text-sm text-muted-gray italic text-center py-4">No stocks added yet.</div>}>
-                        {(stock) => (
-                          <div class="flex justify-between items-center p-3 rounded-lg bg-surface border border-outline-variant hover:border-outline transition-colors">
-                            <div>
-                              <div class="font-medium text-primary">{stock.symbol}</div>
-                              <div class="text-xs text-muted-gray flex gap-2 mt-1">
-                                <span>Qty: {stock.initialQuantity}</span>
-                                <span>•</span>
-                                <span>SIP: ₹{stock.sipAmount}/mo</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleRemoveStock(p(), stock.symbol)}
-                              class="text-muted-gray hover:text-critical-red transition-colors"
-                              title="Remove"
-                            >✕</button>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-
                   {/* Charting Pane */}
-                  <div class="xl:col-span-2 flex flex-col gap-6">
+                  <div class="xl:col-span-3 flex flex-col gap-6">
                     <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                       <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
-                        <span>{p().isKite ? "Weighted SIP Strategy (₹10,000/mo)" : "Simulated Equity Curve"}</span>
+                        <span>{p().isKite ? (sipDistribution() === 'WEIGHTED' ? "Weighted SIP Strategy (₹10,000/mo)" : "Equal SIP Strategy (₹10,000/mo)") : "Simulated Equity Curve"}</span>
                         <div class="flex gap-1 text-xs">
-                          <button onClick={() => setTimeframe('1Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '1Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>1Y</button>
-                          <button onClick={() => setTimeframe('5Y')} class={`px-2 py-1 rounded transition-colors ${timeframe() === '5Y' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>5Y</button>
-                          <button onClick={() => setTimeframe('MAX')} class={`px-2 py-1 rounded transition-colors ${timeframe() === 'MAX' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest hover:bg-surface-variant text-on-surface'}`}>MAX</button>
+                          {p().isKite && (
+                            <div class="flex bg-surface-container-highest rounded p-1">
+                              <button 
+                                onClick={() => setSipDistribution('WEIGHTED')} 
+                                class={`px-2 py-1 rounded transition-colors ${sipDistribution() === 'WEIGHTED' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Weighted
+                              </button>
+                              <button 
+                                onClick={() => setSipDistribution('EQUAL')} 
+                                class={`px-2 py-1 rounded transition-colors ${sipDistribution() === 'EQUAL' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Equal
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div class="flex-1 flex flex-col overflow-hidden relative">
-                        <PortfolioEquityChart equityCurve={sim.equityCurve()} stockCurves={sim.stockCurves()} />
+                        <PortfolioEquityChart equityCurve={sim.equityCurve()} />
                       </div>
                     </div>
 
@@ -347,9 +325,31 @@ export default function PortfoliosPage() {
                       <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                         <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
                           <span>Tradebook Execution Curve (Exact)</span>
+                          <div class="flex gap-1 text-xs">
+                            <div class="flex bg-surface-container-highest rounded p-1">
+                              <button 
+                                onClick={() => setClusterBy('day')} 
+                                class={`px-2 py-1 rounded transition-colors ${clusterBy() === 'day' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Day
+                              </button>
+                              <button 
+                                onClick={() => setClusterBy('week')} 
+                                class={`px-2 py-1 rounded transition-colors ${clusterBy() === 'week' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Week
+                              </button>
+                              <button 
+                                onClick={() => setClusterBy('month')} 
+                                class={`px-2 py-1 rounded transition-colors ${clusterBy() === 'month' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Month
+                              </button>
+                            </div>
+                          </div>
                         </div>
                         <div class="flex-1 flex flex-col overflow-hidden relative">
-                          <PortfolioEquityChart equityCurve={simExact.equityCurve()} stockCurves={simExact.stockCurves()} tradeHistory={p().tradeHistory} />
+                          <PortfolioEquityChart equityCurve={simExact.equityCurve()} stockCurves={simExact.stockCurves()} tradeMarkers={simExact.tradeMarkers()} />
                         </div>
                       </div>
                     </Show>
@@ -357,7 +357,23 @@ export default function PortfoliosPage() {
                 </div>
 
                 {/* Ledger Table */}
-                <PortfolioLedgerTable stockBreakdown={sim.stockBreakdown()} />
+                <PortfolioLedgerTable 
+                  stockBreakdown={sim.stockBreakdown()} 
+                  isKite={p().isKite || false}
+                  onRemoveStock={(symbol, e) => {
+                    e.stopPropagation();
+                    handleRemoveStock(p(), symbol);
+                  }}
+                  isAddingStock={isAddingStock()}
+                  setIsAddingStock={setIsAddingStock}
+                  handleAddStock={(e) => handleAddStock(p(), e)}
+                  newSymbol={newSymbol()}
+                  setNewSymbol={setNewSymbol}
+                  newQty={newQty()}
+                  setNewQty={setNewQty}
+                  newSip={newSip()}
+                  setNewSip={setNewSip}
+                />
               </div>
             </>
           )}

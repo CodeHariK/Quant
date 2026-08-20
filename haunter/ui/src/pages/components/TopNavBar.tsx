@@ -1,9 +1,13 @@
 import { useLocation } from '@solidjs/router';
 import { useTheme } from '../../store/themeStore';
+import { useAppStore, Timeframe } from '../../store/appStore';
 
 export function TopNavBar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { timeframe, setTimeframe } = useAppStore();
+
+  const timeframes: Timeframe[] = ['1y', '5y', '10y', 'max'];
 
   const navItems = [
     { label: 'LEADERBOARD', path: '/leaderboard' },
@@ -35,6 +39,20 @@ export function TopNavBar() {
         </nav>
       </div>
       <div class="flex items-center gap-6">
+        <div class="flex items-center bg-surface-container-highest rounded p-1 gap-1 text-xs font-medium">
+          {timeframes.map(tf => (
+            <button
+              onClick={() => setTimeframe(tf)}
+              class={`px-3 py-1 rounded transition-colors uppercase ${
+                timeframe() === tf 
+                  ? 'bg-primary text-on-primary' 
+                  : 'text-on-surface hover:bg-surface-variant'
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
         <button
           onClick={toggleTheme} title="Toggle Dark / Light Theme"
         >

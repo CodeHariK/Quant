@@ -1,4 +1,4 @@
-import { createEffect, createMemo, onCleanup } from 'solid-js';
+import { createEffect, createMemo, createSignal, onCleanup, Show } from 'solid-js';
 import { IChartApi, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useTheme } from '../../../store/themeStore';
 import type { EquityPoint } from '../../../hooks/usePortfolioSimulation';
@@ -9,6 +9,7 @@ interface PortfolioEquityChartProps {
   equityCurve: EquityPoint[];
   stockCurves?: Record<string, {time: string, value: number}[]>;
   tradeHistory?: KiteTrade[];
+  tradeMarkers?: any[];
 }
 
 const STOCK_COLORS = [
@@ -31,6 +32,8 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
   let mainSeries: any;
   let investedSeries: any;
   let stockSeriesMap: Record<string, any> = {};
+
+  const [tooltip, setTooltip] = createSignal<{visible: boolean, x: number, y: number, text: string}>({ visible: false, x: 0, y: 0, text: '' });
 
   const { theme } = useTheme();
 
@@ -59,11 +62,36 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
       crosshairMarkerRadius: 0,
     });
 
+    chart.subscribeCrosshairMove(param => {
+      if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+        setTooltip(s => ({ ...s, visible: false }));
+        return;
+      }
+
+      if (props.tradeMarkers && props.tradeMarkers.length > 0) {
+        const marker = props.tradeMarkers.find(m => m.time === param.time);
+        if (marker && marker.text) {
+          setTooltip({
+            visible: true,
+            x: param.point.x,
+            y: param.point.y,
+            text: marker.text
+          });
+        } else {
+          setTooltip(s => ({ ...s, visible: false }));
+        }
+      } else {
+        setTooltip(s => ({ ...s, visible: false }));
+      }
+    });
+
     if (props.equityCurve && props.equityCurve.length > 0) {
       mainSeries.setData(props.equityCurve.map(c => ({ time: c.time, value: c.value })));
       investedSeries.setData(props.equityCurve.map(c => ({ time: c.time, value: c.invested })));
       
-      if (props.stockCurves) {
+      if (props.tradeMarkers !== undefined || props.tradeHistory !== undefined) {
+        // Markers disabled, hover dialog handles it
+      } else if (props.stockCurves) {
         let colorIndex = 0;
         Object.entries(props.stockCurves).forEach(([symbol, data]) => {
           const stockSeries = chart.addSeries(LineSeries, {
@@ -75,23 +103,6 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
           stockSeriesMap[symbol] = stockSeries;
           colorIndex++;
         });
-
-        if (props.tradeHistory && props.tradeHistory.length > 0) {
-          Object.entries(stockSeriesMap).forEach(([symbol, series]) => {
-            const rawSym = symbol.replace('.NS', '');
-            const trades = props.tradeHistory!.filter(t => t.tradingsymbol === rawSym);
-            if (trades.length > 0) {
-              const markers = trades.map(trade => ({
-                time: trade.tradeTimestamp.split('T')[0],
-                position: trade.transactionType === 'BUY' ? 'belowBar' : 'aboveBar',
-                color: trade.transactionType === 'BUY' ? '#4CAF50' : '#FF5252',
-                shape: trade.transactionType === 'BUY' ? 'arrowUp' : 'arrowDown',
-                text: `${trade.transactionType} ${trade.quantity} @ ₹${trade.averagePrice}`,
-              }));
-              createSeriesMarkers(series, markers as any);
-            }
-          });
-        }
       }
       
       chart.timeScale().fitContent();
@@ -103,7 +114,14 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
       if (mainSeries) mainSeries.setData(curve.map(c => ({ time: c.time, value: c.value })));
       if (investedSeries) investedSeries.setData(curve.map(c => ({ time: c.time, value: c.invested })));
 
-      if (stockCurves) {
+      if (props.tradeMarkers !== undefined || props.tradeHistory !== undefined) {
+        Object.keys(stockSeriesMap).forEach(sym => {
+          chartInstance!.removeSeries(stockSeriesMap[sym]);
+          delete stockSeriesMap[sym];
+        });
+        
+        // Markers disabled, hover dialog handles it
+      } else if (stockCurves) {
         let colorIndex = 0;
         Object.entries(stockCurves).forEach(([symbol, data]) => {
           if (!stockSeriesMap[symbol]) {
@@ -125,23 +143,6 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
             delete stockSeriesMap[sym];
           }
         });
-
-        if (props.tradeHistory && props.tradeHistory.length > 0) {
-          Object.entries(stockSeriesMap).forEach(([symbol, series]) => {
-            const rawSym = symbol.replace('.NS', '');
-            const trades = props.tradeHistory!.filter(t => t.tradingsymbol === rawSym);
-            if (trades.length > 0) {
-              const markers = trades.map(trade => ({
-                time: trade.tradeTimestamp.split('T')[0],
-                position: trade.transactionType === 'BUY' ? 'belowBar' : 'aboveBar',
-                color: trade.transactionType === 'BUY' ? '#4CAF50' : '#FF5252',
-                shape: trade.transactionType === 'BUY' ? 'arrowUp' : 'arrowDown',
-                text: `${trade.transactionType} ${trade.quantity} @ ₹${trade.averagePrice}`,
-              }));
-              createSeriesMarkers(series, markers as any);
-            }
-          });
-        }
       }
     }
   });
@@ -156,11 +157,25 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
   });
 
   return (
-    <InteractiveChart 
-      onChartInit={onChartInit}
-      measurementData={measurementData()}
-      chartClass="absolute inset-0"
-      containerClass="w-full h-full relative"
-    />
+    <div class="w-full h-full relative">
+      <InteractiveChart 
+        onChartInit={onChartInit}
+        measurementData={measurementData()}
+        chartClass="absolute inset-0"
+        containerClass="w-full h-full relative"
+      />
+      <Show when={tooltip().visible}>
+        <div 
+          class="absolute pointer-events-none z-50 bg-surface-container-highest border border-outline rounded p-3 shadow-lg flex flex-col gap-1 whitespace-pre-wrap max-w-sm"
+          style={{
+            left: `min(calc(100% - 250px), ${tooltip().x + 15}px)`,
+            top: `${Math.max(10, tooltip().y - 10)}px`,
+          }}
+        >
+          <div class="text-sm font-bold text-on-surface mb-1 text-primary">Trade Details</div>
+          <div class="text-xs text-on-surface leading-relaxed">{tooltip().text}</div>
+        </div>
+      </Show>
+    </div>
   );
 }

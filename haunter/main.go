@@ -52,9 +52,14 @@ func main() {
 			symbol = "^NSEMDCP50"
 		}
 
+		period := r.URL.Query().Get("period")
+		if period == "" {
+			period = "max"
+		}
+
 		force := r.URL.Query().Get("force") == "true"
 
-		report, err := fetcher.FetchFullValuationReport(symbol, force)
+		report, err := fetcher.FetchFullValuationReport(symbol, force, period)
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusInternalServerError)
 			return

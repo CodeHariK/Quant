@@ -19,11 +19,14 @@ export interface StockSummary {
 }
 
 export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
+export type ClusterMode = 'day' | 'week' | 'month';
 
 export function usePortfolioSimulation(
   portfolio: () => Portfolio | undefined,
-  timeframe: () => '1Y' | '5Y' | 'MAX',
-  mode: () => SimulationMode = () => 'MANUAL'
+  timeframe: () => '1y' | '5y' | '10y' | 'max',
+  mode: () => SimulationMode = () => 'MANUAL',
+  sipDistribution: () => 'WEIGHTED' | 'EQUAL' = () => 'WEIGHTED',
+  clusterBy: () => ClusterMode = () => 'week'
 ) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
@@ -31,12 +34,35 @@ export function usePortfolioSimulation(
   const [equityCurve, setEquityCurve] = createSignal<EquityPoint[]>([]);
   const [stockCurves, setStockCurves] = createSignal<Record<string, {time: string, value: number}[]>>({});
   const [stockBreakdown, setStockBreakdown] = createSignal<StockSummary[]>([]);
+  const [tradeMarkers, setTradeMarkers] = createSignal<any[]>([]);
   
   const [totalInvested, setTotalInvested] = createSignal(0);
   const [currentValue, setCurrentValue] = createSignal(0);
 
-  createEffect(() => [portfolio(), timeframe(), mode()] as const, ([p, tf, simMode]) => {
-    if (!p || !p.stocks || p.stocks.length === 0) {
+  createEffect(() => [portfolio(), timeframe(), mode(), sipDistribution(), clusterBy()] as const, ([p, tf, simMode, dist, cluster]) => {
+    if (!p) {
+      setTotalInvested(0);
+      setCurrentValue(0);
+      setEquityCurve([]);
+      setStockBreakdown([]);
+      return;
+    }
+
+    let stocksToFetch = p.stocks || [];
+    
+    // For TRADEBOOK_EXACT, we MUST fetch history for every stock ever traded, even if fully sold
+    if (simMode === 'TRADEBOOK_EXACT' && p.tradeHistory) {
+      const tradedSymbols = new Set(stocksToFetch.map(s => s.symbol));
+      p.tradeHistory.forEach(t => {
+        const sym = t.tradingsymbol.endsWith('.NS') ? t.tradingsymbol : `${t.tradingsymbol}.NS`;
+        if (!tradedSymbols.has(sym)) {
+          tradedSymbols.add(sym);
+          stocksToFetch.push({ symbol: sym, initialQuantity: 0, sipAmount: 0, currentQuantity: 0 });
+        }
+      });
+    }
+
+    if (stocksToFetch.length === 0) {
       setTotalInvested(0);
       setCurrentValue(0);
       setEquityCurve([]);
@@ -48,9 +74,9 @@ export function usePortfolioSimulation(
     setError(null);
 
     Promise.all(
-      p.stocks.map(async (stock) => {
+      stocksToFetch.map(async (stock) => {
         try {
-          const report = await fetchValuationReport(stock.symbol, false);
+          const report = await fetchValuationReport(stock.symbol, false, tf);
           return { stock, history: report.history };
         } catch (e) {
           console.error(`Failed to fetch history for ${stock.symbol}`, e);
@@ -67,16 +93,21 @@ export function usePortfolioSimulation(
 
       // 2. Filter dates by timeframe
       let filteredDates = allDates;
-      if (tf === '1Y') {
+      if (tf === '1y') {
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
         filteredDates = allDates.filter(d => d >= oneYearAgoStr);
-      } else if (tf === '5Y') {
+      } else if (tf === '5y') {
         const fiveYearsAgo = new Date();
         fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
         const fiveYearsAgoStr = fiveYearsAgo.toISOString().split('T')[0];
         filteredDates = allDates.filter(d => d >= fiveYearsAgoStr);
+      } else if (tf === '10y') {
+        const tenYearsAgo = new Date();
+        tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+        const tenYearsAgoStr = tenYearsAgo.toISOString().split('T')[0];
+        filteredDates = allDates.filter(d => d >= tenYearsAgoStr);
       }
 
       if (filteredDates.length === 0) {
@@ -99,28 +130,37 @@ export function usePortfolioSimulation(
       const lastKnownPrice: Record<string, number> = {};
       const stockInvested: Record<string, number> = {};
       
-      // Calculate Weighted SIP amounts for Kite
+      // Calculate Dynamic SIP amounts for Kite
       const GLOBAL_SIP_AMOUNT = 10000;
-      const stockWeightedSip: Record<string, number> = {};
+      const stockDynamicSip: Record<string, number> = {};
       if (p.isKite) {
-        let totalPortfolioCurrentValue = 0;
-        const stockCurrentValues: Record<string, number> = {};
-        results.forEach(res => {
-          const sym = res.stock.symbol;
-          const qty = res.stock.currentQuantity || 0;
-          const history = res.history;
-          const latestPrice = history.length > 0 ? history[history.length - 1].close : 0;
-          const val = qty * latestPrice;
-          stockCurrentValues[sym] = val;
-          totalPortfolioCurrentValue += val;
-        });
-
-        if (totalPortfolioCurrentValue > 0) {
+        if (dist === 'EQUAL') {
+          const activeStocks = results.filter(res => (res.stock.currentQuantity || res.stock.initialQuantity || 0) > 0);
+          const numStocks = activeStocks.length;
+          const equalAmount = numStocks > 0 ? GLOBAL_SIP_AMOUNT / numStocks : 0;
+          activeStocks.forEach(res => {
+             stockDynamicSip[res.stock.symbol] = equalAmount;
+          });
+        } else {
+          let totalPortfolioCurrentValue = 0;
+          const stockCurrentValues: Record<string, number> = {};
           results.forEach(res => {
             const sym = res.stock.symbol;
-            const weight = stockCurrentValues[sym] / totalPortfolioCurrentValue;
-            stockWeightedSip[sym] = GLOBAL_SIP_AMOUNT * weight;
+            const qty = res.stock.currentQuantity || 0;
+            const history = res.history;
+            const latestPrice = history.length > 0 ? history[history.length - 1].close : 0;
+            const val = qty * latestPrice;
+            stockCurrentValues[sym] = val;
+            totalPortfolioCurrentValue += val;
           });
+
+          if (totalPortfolioCurrentValue > 0) {
+            results.forEach(res => {
+              const sym = res.stock.symbol;
+              const weight = stockCurrentValues[sym] / totalPortfolioCurrentValue;
+              stockDynamicSip[sym] = GLOBAL_SIP_AMOUNT * weight;
+            });
+          }
         }
       }
       let lastMonthStr = "";
@@ -145,6 +185,7 @@ export function usePortfolioSimulation(
                 priorTradeQty[sym] += trade.quantity;
                 priorTradeInvested[sym] += (trade.quantity * trade.averagePrice);
              } else if (trade.transactionType === 'SELL') {
+                // If they sold, we reduce quantity
                 priorTradeQty[sym] = Math.max(0, priorTradeQty[sym] - trade.quantity);
                 priorTradeInvested[sym] = Math.max(0, priorTradeInvested[sym] - (trade.quantity * trade.averagePrice));
              }
@@ -159,6 +200,7 @@ export function usePortfolioSimulation(
       results.forEach(res => {
         const sym = res.stock.symbol;
         if (isTradebookExact) {
+            // Pure forward reconstruction: start exactly from what they held at filteredDates[0]
             currentQty[sym] = priorTradeQty[sym] || 0;
             stockInvested[sym] = priorTradeInvested[sym] || 0;
         } else {
@@ -203,8 +245,8 @@ export function usePortfolioSimulation(
 
           if (simMode === 'MANUAL' && isNewMonth && lastKnownPrice[sym] > 0) {
             let sipAmt = res.stock.sipAmount;
-            if (p.isKite && stockWeightedSip[sym] !== undefined) {
-               sipAmt = stockWeightedSip[sym];
+            if (p.isKite && stockDynamicSip[sym] !== undefined) {
+               sipAmt = stockDynamicSip[sym];
             }
             if (sipAmt > 0) {
                const sharesBought = sipAmt / lastKnownPrice[sym];
@@ -214,18 +256,85 @@ export function usePortfolioSimulation(
             }
           }
 
-          const dailyStockValue = currentQty[sym] * lastKnownPrice[sym];
-          dailyPortfolioValue += dailyStockValue;
-          
-          stockCurvesRaw[sym].push({ time: date, value: dailyStockValue });
-        });
-
-        curve.push({
-          time: date,
-          value: dailyPortfolioValue,
-          invested: Object.values(stockInvested).reduce((a, b) => a + b, 0),
-        });
+        const dailyStockValue = currentQty[sym] * lastKnownPrice[sym];
+        dailyPortfolioValue += dailyStockValue;
+        
+        stockCurvesRaw[sym].push({ time: date, value: dailyStockValue });
       });
+
+      curve.push({
+        time: date,
+        value: dailyPortfolioValue,
+        invested: Object.values(stockInvested).reduce((a, b) => a + b, 0),
+      });
+    });
+
+    let finalCurve = curve;
+    const finalMarkers: any[] = [];
+    
+    if (isTradebookExact) {
+      const getCluster = (dStr: string) => {
+         if (cluster === 'day') return dStr;
+         if (cluster === 'month') return dStr.substring(0, 7);
+         
+         const d = new Date(dStr);
+         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+         const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+         const weekNo = Math.ceil(( ( (d.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+         return `${d.getUTCFullYear()}-W${weekNo}`;
+      };
+
+      const clusterPoints: EquityPoint[] = [];
+      const clusterTrades: Record<string, { buy: number, sell: number, buyVal: number, sellVal: number }> = {};
+      
+      filteredDates.forEach((date, i) => {
+         const currentCluster = getCluster(date);
+         
+         if (tradesByDate[date]) {
+            tradesByDate[date].forEach(t => {
+               const sym = t.tradingsymbol.endsWith('.NS') ? t.tradingsymbol : `${t.tradingsymbol}.NS`;
+               if (!clusterTrades[sym]) clusterTrades[sym] = { buy: 0, sell: 0, buyVal: 0, sellVal: 0 };
+               if (t.transactionType === 'BUY') {
+                  clusterTrades[sym].buy += t.quantity;
+                  clusterTrades[sym].buyVal += (t.quantity * t.averagePrice);
+               } else if (t.transactionType === 'SELL') {
+                  clusterTrades[sym].sell += t.quantity;
+                  clusterTrades[sym].sellVal += (t.quantity * t.averagePrice);
+               }
+            });
+         }
+         
+         const nextDate = filteredDates[i+1];
+         const nextCluster = nextDate ? getCluster(nextDate) : null;
+         
+         if (currentCluster !== nextCluster) { // Last trading day of the cluster
+            clusterPoints.push(curve[i]);
+            
+            const textLines: string[] = [];
+            Object.keys(clusterTrades).forEach(sym => {
+               const wt = clusterTrades[sym];
+               const avgBuy = wt.buy > 0 ? (wt.buyVal / wt.buy) : 0;
+               const avgSell = wt.sell > 0 ? (wt.sellVal / wt.sell) : 0;
+               if (wt.buy > 0) textLines.push(`BUY ${sym.replace('.NS', '')}: ${wt.buy} @ ₹${avgBuy.toFixed(2)}`);
+               if (wt.sell > 0) textLines.push(`SELL ${sym.replace('.NS', '')}: ${wt.sell} @ ₹${avgSell.toFixed(2)}`);
+            });
+            
+            if (textLines.length > 0) {
+                finalMarkers.push({
+                   time: date,
+                   position: 'aboveBar',
+                   color: '#2196F3',
+                   shape: 'circle',
+                   text: textLines.join('\n')
+                });
+            }
+            
+            // Reset cluster trades for the next cluster
+            Object.keys(clusterTrades).forEach(k => delete clusterTrades[k]);
+         }
+      });
+      finalCurve = clusterPoints;
+    }
 
       // Calculate final breakdown
       const breakdown: StockSummary[] = results.map(res => {
@@ -235,8 +344,8 @@ export function usePortfolioSimulation(
         const lumpsumReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
         
         let displaySip = res.stock.sipAmount;
-        if (p.isKite && stockWeightedSip[sym] !== undefined && simMode === 'MANUAL') {
-          displaySip = stockWeightedSip[sym];
+        if (p.isKite && stockDynamicSip[sym] !== undefined && simMode === 'MANUAL') {
+          displaySip = stockDynamicSip[sym];
         }
 
         return {
@@ -248,14 +357,15 @@ export function usePortfolioSimulation(
           currentQty: currentQty[sym],
           lumpsumReturn,
         };
-      });
+      }).filter(s => s.currentQty > 0);
 
-      setEquityCurve(curve);
+      setEquityCurve(finalCurve);
       setStockCurves(stockCurvesRaw);
       setStockBreakdown(breakdown);
+      setTradeMarkers(finalMarkers);
       
-      const finalInvested = curve.length > 0 ? curve[curve.length - 1].invested : 0;
-      const finalValue = curve.length > 0 ? curve[curve.length - 1].value : 0;
+      const finalInvested = finalCurve.length > 0 ? finalCurve[finalCurve.length - 1].invested : 0;
+      const finalValue = finalCurve.length > 0 ? finalCurve[finalCurve.length - 1].value : 0;
       
       setTotalInvested(finalInvested);
       setCurrentValue(finalValue);
@@ -269,7 +379,8 @@ export function usePortfolioSimulation(
     equityCurve,
     stockCurves,
     stockBreakdown,
+    tradeMarkers,
     totalInvested,
-    currentValue,
+    currentValue
   };
 }

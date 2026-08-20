@@ -15,17 +15,18 @@ import (
 	"haunter/types"
 )
 
-// FetchFullValuationReport fetches 5-Year Core Valuation Data (Info, 5y History, 5y CashFlow, 5y IncomeStatement, 5y BalanceSheet).
+// FetchFullValuationReport fetches Core Valuation Data (Info, History by period, 5y CashFlow, 5y IncomeStatement, 5y BalanceSheet).
 // Preserves the COMPLETE raw info model & financial statements without discarding any fields.
-func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValuationReport, error) {
+func FetchFullValuationReport(symbol string, forceRefresh bool, period string) (*types.FullValuationReport, error) {
 	st := store.GetStore()
 
+	cacheKey := fmt.Sprintf("%s:%s", symbol, period)
 	// 1. Check local BoltDB cache first (if not forcing refresh)
 	if !forceRefresh && st != nil {
-		if cachedReport, ok := st.GetValuationReport(symbol); ok {
+		if cachedReport, ok := st.GetValuationReport(cacheKey); ok {
 			// Auto-refresh if cache is older than 24 hours (1 day)
 			if time.Since(cachedReport.FetchedAt) < 24*time.Hour {
-				log.Printf("📦 [CACHE_HIT] Loaded 5-Year Valuation Report for [%s] from BoltDB (Last updated %s ago)\n",
+				log.Printf("📦 [CACHE_HIT] Loaded Valuation Report for [%s] from BoltDB (Last updated %s ago)\n",
 					symbol, time.Since(cachedReport.FetchedAt).Truncate(time.Second))
 				return cachedReport, nil
 			}
@@ -34,9 +35,9 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		}
 	}
 
-	log.Printf("🌐 [CACHE_MISS] Fetching 5-Year Valuation Report for [%s] from Yahoo Finance...\n", symbol)
+	log.Printf("🌐 [CACHE_MISS] Fetching Valuation Report for [%s] from Yahoo Finance (Period: %s)...\n", symbol, period)
 
-	if err := logger.LogYahooRequest(fmt.Sprintf("FetchFullValuationReport(5Y, %s)", symbol)); err != nil {
+	if err := logger.LogYahooRequest(fmt.Sprintf("FetchFullValuationReport(%s, %s)", period, symbol)); err != nil {
 		return nil, err
 	}
 
@@ -53,11 +54,11 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 		rawInfo = &models.Info{Symbol: symbol, LongName: symbol} // Safe fallback
 	}
 
-	// 2. History (5-Year Daily OHLCV Candles)
-	bars, err := t.History(models.HistoryParams{Period: "5y", Interval: "1d"})
+	// 2. History (Daily OHLCV Candles for requested period)
+	bars, err := t.History(models.HistoryParams{Period: period, Interval: "1d"})
 	if err != nil {
-		log.Printf("⚠️ Error: Failed to fetch 5Y History for %s: %v", symbol, err)
-		return nil, fmt.Errorf("failed to fetch 5Y daily history bars for %s: %w", symbol, err)
+		log.Printf("⚠️ Error: Failed to fetch %s History for %s: %v", period, symbol, err)
+		return nil, fmt.Errorf("failed to fetch %s daily history bars for %s: %w", period, symbol, err)
 	}
 
 	historyBars := make([]types.HistoryBar, 0, len(bars))
@@ -176,8 +177,8 @@ func FetchFullValuationReport(symbol string, forceRefresh bool) (*types.FullValu
 
 	// Save complete 5-year report to BoltDB
 	if st != nil {
-		if err := st.SaveValuationReport(report); err != nil {
-			log.Printf("⚠️ Failed to save report for [%s] to BoltDB: %v\n", symbol, err)
+		if err := st.SaveValuationReport(cacheKey, report); err != nil {
+			log.Printf("⚠️ Failed to cache report for %s: %v", cacheKey, err)
 		} else {
 			log.Printf("💾 [CACHE_STORED] Saved Report for [%s] (Sharpe: %.2f, Sortino: %.2f, Volatility: %.2f%%)\n",
 				symbol, sharpeVal, sortinoVal, volVal)

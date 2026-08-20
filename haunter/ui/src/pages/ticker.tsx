@@ -1,5 +1,6 @@
 import { useSearchParams } from '@solidjs/router';
 import { createSignal, createEffect } from 'solid-js';
+import { useAppStore } from '../store/appStore';
 import { PageLayout } from '../pages/components/PageLayout';
 import { ChipColor } from '../primitives/Chip';
 import { FinancialStatementViewer } from '../pages/components/FinancialStatementViewer';
@@ -28,10 +29,12 @@ export default function Ticker() {
   const [loading, setLoading] = createSignal<boolean>(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  const loadStockReport = (sym: string, force = false) => {
+  const { timeframe } = useAppStore();
+
+  const loadStockReport = (sym: string, force = false, period = timeframe()) => {
     setLoading(true);
     setError(null);
-    fetchValuationReport(sym, force)
+    fetchValuationReport(sym, force, period)
       .then((report) => {
         setFullReport(report);
         setLoading(false);
@@ -42,13 +45,13 @@ export default function Ticker() {
       });
   };
 
-  // Whenever selectedSymbol changes: load report and update URL query parameter
+  // Whenever selectedSymbol or timeframe changes: load report and update URL query parameter
   createEffect(
-    () => selectedSymbol(),
-    (sym) => {
+    () => [selectedSymbol(), timeframe()] as const,
+    ([sym, tf]) => {
       if (sym) {
         setSearchParams({ symbol: sym });
-        loadStockReport(sym, false); // Load from BoltDB cache
+        loadStockReport(sym, false, tf); // Load from BoltDB cache
       }
     }
   );

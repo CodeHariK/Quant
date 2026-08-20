@@ -180,6 +180,7 @@ func FetchKitePortfolio() (*KitePortfolioReport, error) {
 				Transaction:    t.TransactionType,
 				Quantity:       t.Quantity,
 				AveragePrice:   t.AveragePrice,
+				TradeTimestamp: t.ExchangeTimestamp.Time,
 			})
 		}
 	}

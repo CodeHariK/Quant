@@ -99,8 +99,8 @@ func (s *Store) Close() error {
 	return nil
 }
 
-// GetValuationReport retrieves cached report for a symbol if it exists (persists indefinitely)
-func (s *Store) GetValuationReport(symbol string) (*types.FullValuationReport, bool) {
+// GetValuationReport retrieves cached report for a cacheKey if it exists (persists indefinitely)
+func (s *Store) GetValuationReport(cacheKey string) (*types.FullValuationReport, bool) {
 	var report types.FullValuationReport
 	found := false
 
@@ -110,7 +110,7 @@ func (s *Store) GetValuationReport(symbol string) (*types.FullValuationReport, b
 			return nil
 		}
 
-		data := b.Get([]byte(symbol))
+		data := b.Get([]byte(cacheKey))
 		if data == nil {
 			return nil
 		}
@@ -130,7 +130,7 @@ func (s *Store) GetValuationReport(symbol string) (*types.FullValuationReport, b
 }
 
 // SaveValuationReport saves a FullValuationReport to BoltDB
-func (s *Store) SaveValuationReport(report *types.FullValuationReport) error {
+func (s *Store) SaveValuationReport(cacheKey string, report *types.FullValuationReport) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(config.ReportsBucket))
 		if b == nil {
@@ -142,7 +142,7 @@ func (s *Store) SaveValuationReport(report *types.FullValuationReport) error {
 			return err
 		}
 
-		return b.Put([]byte(report.Symbol), data)
+		return b.Put([]byte(cacheKey), data)
 	})
 }
 
