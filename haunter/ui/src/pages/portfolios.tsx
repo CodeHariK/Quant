@@ -1,4 +1,4 @@
-import { createSignal, Show, For } from 'solid-js';
+import { createSignal, createMemo, Show, For } from 'solid-js';
 import {
   Portfolio,
   PortfolioStock,
@@ -11,6 +11,7 @@ import {
 import { PortfolioEquityChart } from './components/portfolio/PortfolioEquityChart';
 import { useAppStore } from '../store/appStore';
 import { PortfolioLedgerTable } from './components/portfolio/PortfolioLedgerTable';
+import { CorrelationMatrixTable } from './components/portfolio/CorrelationMatrixTable';
 import { PageLayout } from './components/PageLayout';
 import { usePortfolioSimulation } from '../hooks/usePortfolioSimulation';
 
@@ -78,7 +79,7 @@ export default function PortfoliosPage() {
 
   // Chart state
   const { timeframe } = useAppStore();
-  const [sipDistribution, setSipDistribution] = createSignal<'WEIGHTED' | 'EQUAL'>('WEIGHTED');
+  const [sipDistribution, setSipDistribution] = createSignal<'WEIGHTED' | 'EQUAL' | 'RETURN_WEIGHTED'>('WEIGHTED');
 
   // Simulation
   const sim = usePortfolioSimulation(
@@ -89,6 +90,7 @@ export default function PortfoliosPage() {
   );
 
   const [clusterBy, setClusterBy] = createSignal<'day' | 'week' | 'month'>('week');
+  const [unselectedNormalizedStocks, setUnselectedNormalizedStocks] = createSignal<Set<string>>(new Set());
 
   const simExact = usePortfolioSimulation(
     () => selectedPortfolio()?.isKite ? selectedPortfolio() : undefined,
@@ -97,6 +99,56 @@ export default function PortfoliosPage() {
     () => 'WEIGHTED',
     clusterBy
   );
+
+  const activeStocks = createMemo(() => simExact.stockBreakdown().filter(s => s.currentQty > 0).map(s => s.symbol).sort());
+
+  const filteredNormalizedCurves = createMemo(() => {
+    const curves = simExact.normalizedStockCurves();
+    const unselected = unselectedNormalizedStocks();
+    const active = activeStocks();
+    const filtered: Record<string, any> = {};
+    active.forEach(sym => {
+       if (!unselected.has(sym) && curves[sym]) {
+          filtered[sym] = curves[sym];
+       }
+    });
+    return filtered;
+  });
+
+  const correlationScore = createMemo(() => {
+    const curves = filteredNormalizedCurves();
+    const symbols = Object.keys(curves);
+    if (symbols.length !== 2) return null;
+    
+    const [sym1, sym2] = symbols;
+    const data1 = curves[sym1];
+    const data2 = curves[sym2];
+    
+    const returns1: number[] = [];
+    const returns2: number[] = [];
+    
+    for (let i = 0; i < data1.length; i++) {
+       returns1.push(data1[i].value);
+       returns2.push(data2[i].value);
+    }
+    
+    const n = returns1.length;
+    if (n === 0) return null;
+    
+    let sum1 = 0, sum2 = 0, sum1Sq = 0, sum2Sq = 0, pSum = 0;
+    for (let i = 0; i < n; i++) {
+      sum1 += returns1[i];
+      sum2 += returns2[i];
+      sum1Sq += returns1[i] ** 2;
+      sum2Sq += returns2[i] ** 2;
+      pSum += returns1[i] * returns2[i];
+    }
+    const num = pSum - (sum1 * sum2 / n);
+    const den = Math.sqrt((sum1Sq - (sum1 ** 2) / n) * (sum2Sq - (sum2 ** 2) / n));
+    if (den === 0) return 0;
+    
+    return num / den;
+  });
 
   // Create new portfolio state
   const [isCreating, setIsCreating] = createSignal(false);
@@ -296,7 +348,7 @@ export default function PortfoliosPage() {
                   <div class="xl:col-span-3 flex flex-col gap-6">
                     <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
                       <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
-                        <span>{p().isKite ? (sipDistribution() === 'WEIGHTED' ? "Weighted SIP Strategy (₹10,000/mo)" : "Equal SIP Strategy (₹10,000/mo)") : "Simulated Equity Curve"}</span>
+                        <span>{p().isKite ? (sipDistribution() === 'WEIGHTED' ? "Value Weighted SIP Strategy (₹10,000/mo)" : sipDistribution() === 'RETURN_WEIGHTED' ? "Return Weighted SIP Strategy (₹10,000/mo)" : "Equal SIP Strategy (₹10,000/mo)") : "Simulated Equity Curve"}</span>
                         <div class="flex gap-1 text-xs">
                           {p().isKite && (
                             <div class="flex bg-surface-container-highest rounded p-1">
@@ -304,7 +356,13 @@ export default function PortfoliosPage() {
                                 onClick={() => setSipDistribution('WEIGHTED')} 
                                 class={`px-2 py-1 rounded transition-colors ${sipDistribution() === 'WEIGHTED' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
                               >
-                                Weighted
+                                Value W.
+                              </button>
+                              <button 
+                                onClick={() => setSipDistribution('RETURN_WEIGHTED')} 
+                                class={`px-2 py-1 rounded transition-colors ${sipDistribution() === 'RETURN_WEIGHTED' ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-variant'}`}
+                              >
+                                Return W.
                               </button>
                               <button 
                                 onClick={() => setSipDistribution('EQUAL')} 
@@ -352,6 +410,59 @@ export default function PortfoliosPage() {
                           <PortfolioEquityChart equityCurve={simExact.equityCurve()} stockCurves={simExact.stockCurves()} tradeMarkers={simExact.tradeMarkers()} />
                         </div>
                       </div>
+
+                      <div class="border border-outline rounded-xl overflow-hidden bg-surface-container-low flex flex-col h-[600px]">
+                        <div class="p-4 border-b border-outline bg-surface-container-low font-medium flex justify-between items-center shrink-0">
+                          <div class="flex items-center gap-4">
+                            <span>Normalized Asset Curves (Peak = 100)</span>
+                            <Show when={correlationScore() !== null}>
+                              <div class="px-2 py-1 bg-surface-container-highest rounded text-xs flex items-center gap-1 border border-outline">
+                                <span class="text-on-surface-variant font-normal">Trend Correlation:</span>
+                                <span class={correlationScore()! > 0.7 ? "text-blue-500 font-bold" : correlationScore()! < 0.3 ? "text-green-500 font-bold" : "text-amber-500 font-bold"}>
+                                  {correlationScore()!.toFixed(2)}
+                                </span>
+                              </div>
+                            </Show>
+                          </div>
+                          <div class="flex gap-2">
+                            <button 
+                              class="text-xs text-primary hover:underline"
+                              onClick={() => setUnselectedNormalizedStocks(new Set(activeStocks()))}
+                            >
+                              Clear All
+                            </button>
+                            <button 
+                              class="text-xs text-primary hover:underline"
+                              onClick={() => setUnselectedNormalizedStocks(new Set())}
+                            >
+                              Select All
+                            </button>
+                          </div>
+                        </div>
+                        <div class="p-3 border-b border-outline bg-surface-container-lowest flex flex-wrap gap-3 max-h-[100px] overflow-y-auto">
+                          <For each={activeStocks()}>
+                            {(sym) => (
+                              <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none text-on-surface">
+                                <input 
+                                  type="checkbox" 
+                                  class="accent-primary"
+                                  checked={!unselectedNormalizedStocks().has(sym)}
+                                  onChange={(e) => {
+                                    const s = new Set(unselectedNormalizedStocks());
+                                    if (e.currentTarget.checked) s.delete(sym);
+                                    else s.add(sym);
+                                    setUnselectedNormalizedStocks(s);
+                                  }}
+                                />
+                                <span>{sym.replace('.NS', '')}</span>
+                              </label>
+                            )}
+                          </For>
+                        </div>
+                        <div class="flex-1 flex flex-col overflow-hidden relative">
+                          <PortfolioEquityChart equityCurve={[]} stockCurves={filteredNormalizedCurves()} />
+                        </div>
+                      </div>
                     </Show>
                   </div>
                 </div>
@@ -373,6 +484,11 @@ export default function PortfoliosPage() {
                   setNewQty={setNewQty}
                   newSip={newSip()}
                   setNewSip={setNewSip}
+                />
+                
+                <CorrelationMatrixTable 
+                  activeStocks={activeStocks().filter(sym => !unselectedNormalizedStocks().has(sym))}
+                  normalizedCurves={simExact.normalizedStockCurves()}
                 />
               </div>
             </>

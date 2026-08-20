@@ -25,7 +25,7 @@ export function usePortfolioSimulation(
   portfolio: () => Portfolio | undefined,
   timeframe: () => '1y' | '5y' | '10y' | 'max',
   mode: () => SimulationMode = () => 'MANUAL',
-  sipDistribution: () => 'WEIGHTED' | 'EQUAL' = () => 'WEIGHTED',
+  sipDistribution: () => 'WEIGHTED' | 'EQUAL' | 'RETURN_WEIGHTED' = () => 'WEIGHTED',
   clusterBy: () => ClusterMode = () => 'week'
 ) {
   const [loading, setLoading] = createSignal(false);
@@ -33,6 +33,7 @@ export function usePortfolioSimulation(
   
   const [equityCurve, setEquityCurve] = createSignal<EquityPoint[]>([]);
   const [stockCurves, setStockCurves] = createSignal<Record<string, {time: string, value: number}[]>>({});
+  const [normalizedStockCurves, setNormalizedStockCurves] = createSignal<Record<string, {time: string, value: number}[]>>({});
   const [stockBreakdown, setStockBreakdown] = createSignal<StockSummary[]>([]);
   const [tradeMarkers, setTradeMarkers] = createSignal<any[]>([]);
   
@@ -141,6 +142,46 @@ export function usePortfolioSimulation(
           activeStocks.forEach(res => {
              stockDynamicSip[res.stock.symbol] = equalAmount;
           });
+        } else if (dist === 'RETURN_WEIGHTED') {
+          const activeStocks = results.filter(res => (res.stock.currentQuantity || res.stock.initialQuantity || 0) > 0);
+          
+          let totalReturnScore = 0;
+          const stockReturns: Record<string, number> = {};
+          
+          activeStocks.forEach(res => {
+            const sym = res.stock.symbol;
+            let firstPrice = 0;
+            for (let i = 0; i < filteredDates.length; i++) {
+               const p = priceMaps[sym]?.get(filteredDates[i]);
+               if (p && p > 0) {
+                  firstPrice = p;
+                  break;
+               }
+            }
+            const history = res.history;
+            const lastPrice = history.length > 0 ? history[history.length - 1].close : 0;
+            const lumpsumReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+            
+            // We use max(0, return) so negative returning stocks get 0 weight
+            const score = Math.max(0, lumpsumReturn);
+            stockReturns[sym] = score;
+            totalReturnScore += score;
+          });
+
+          if (totalReturnScore > 0) {
+            activeStocks.forEach(res => {
+              const sym = res.stock.symbol;
+              const weight = stockReturns[sym] / totalReturnScore;
+              stockDynamicSip[sym] = GLOBAL_SIP_AMOUNT * weight;
+            });
+          } else {
+            // Fallback to equal if no positive returns
+            const numStocks = activeStocks.length;
+            const equalAmount = numStocks > 0 ? GLOBAL_SIP_AMOUNT / numStocks : 0;
+            activeStocks.forEach(res => {
+               stockDynamicSip[res.stock.symbol] = equalAmount;
+            });
+          }
         } else {
           let totalPortfolioCurrentValue = 0;
           const stockCurrentValues: Record<string, number> = {};
@@ -339,7 +380,14 @@ export function usePortfolioSimulation(
       // Calculate final breakdown
       const breakdown: StockSummary[] = results.map(res => {
         const sym = res.stock.symbol;
-        const firstPrice = priceMaps[sym].get(filteredDates[0]) || 0;
+        let firstPrice = 0;
+        for (let i = 0; i < filteredDates.length; i++) {
+           const p = priceMaps[sym]?.get(filteredDates[i]);
+           if (p && p > 0) {
+              firstPrice = p;
+              break;
+           }
+        }
         const lastPrice = lastKnownPrice[sym] || 0;
         const lumpsumReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
         
@@ -359,8 +407,35 @@ export function usePortfolioSimulation(
         };
       }).filter(s => s.currentQty > 0);
 
+      // Calculate normalized pure price curves (ignoring quantities)
+      const normalizedRaw: Record<string, {time: string, value: number}[]> = {};
+      results.forEach(res => {
+         const sym = res.stock.symbol;
+         const purePriceCurve: {time: string, value: number}[] = [];
+         let lastKnown = 0;
+         let maxVal = 0;
+         
+         filteredDates.forEach(date => {
+            const p = priceMaps[sym]?.get(date);
+            if (p !== undefined) lastKnown = p;
+            
+            purePriceCurve.push({ time: date, value: lastKnown });
+            if (lastKnown > maxVal) maxVal = lastKnown;
+         });
+         
+         if (maxVal > 0) {
+            normalizedRaw[sym] = purePriceCurve.map(p => ({
+               time: p.time,
+               value: (p.value / maxVal) * 100
+            }));
+         } else {
+            normalizedRaw[sym] = purePriceCurve.map(p => ({ time: p.time, value: 0 }));
+         }
+      });
+
       setEquityCurve(finalCurve);
       setStockCurves(stockCurvesRaw);
+      setNormalizedStockCurves(normalizedRaw);
       setStockBreakdown(breakdown);
       setTradeMarkers(finalMarkers);
       
@@ -378,6 +453,7 @@ export function usePortfolioSimulation(
     error,
     equityCurve,
     stockCurves,
+    normalizedStockCurves,
     stockBreakdown,
     tradeMarkers,
     totalInvested,

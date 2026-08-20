@@ -12,18 +12,15 @@ interface PortfolioEquityChartProps {
   tradeMarkers?: any[];
 }
 
-const STOCK_COLORS = [
-  '#FF5252', // Red
-  '#4CAF50', // Green
-  '#FFC107', // Amber
-  '#E040FB', // Purple
-  '#00BCD4', // Cyan
-  '#FF9800', // Orange
-  '#F48FB1', // Pink
-  '#CDDc39', // Lime
-  '#795548', // Brown
-  '#607D8B', // Blue Grey
-];
+function getStockColor(symbol: string): string {
+  let hash = 0;
+  for (let i = 0; i < symbol.length; i++) {
+    hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // The golden ratio conjugate helps distribute hues evenly
+  const h = Math.abs(hash * 0.6180339887 * 360) % 360;
+  return `hsl(${h.toFixed(0)}, 70%, 55%)`;
+}
 
 export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
   let chartInstance: IChartApi | undefined;
@@ -62,6 +59,8 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
       crosshairMarkerRadius: 0,
     });
 
+    let activeHoveredSymbol: string | null = null;
+
     chart.subscribeCrosshairMove(param => {
       if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
         setTooltip(s => ({ ...s, visible: false }));
@@ -80,6 +79,48 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
         } else {
           setTooltip(s => ({ ...s, visible: false }));
         }
+      } else if (props.stockCurves) {
+        let closestSymbol: string | null = null;
+        let minDistance = Infinity;
+
+        Object.keys(stockSeriesMap).forEach(sym => {
+          const series = stockSeriesMap[sym];
+          const dataPoint = param.seriesData.get(series) as any;
+          if (dataPoint !== undefined && dataPoint.value !== undefined) {
+            const y = series.priceToCoordinate(dataPoint.value);
+            if (y !== null && param.point) {
+              const dist = Math.abs(y - param.point.y);
+              if (dist < minDistance && dist < 30) { // within 30 pixels
+                minDistance = dist;
+                closestSymbol = sym;
+              }
+            }
+          }
+        });
+
+        // Update thicknesses only if changed
+        if (closestSymbol !== activeHoveredSymbol) {
+          activeHoveredSymbol = closestSymbol;
+          Object.keys(stockSeriesMap).forEach(sym => {
+            const series = stockSeriesMap[sym];
+            if (sym === closestSymbol) {
+              series.applyOptions({ lineWidth: 3 });
+            } else {
+              series.applyOptions({ lineWidth: 1 });
+            }
+          });
+        }
+
+        if (closestSymbol) {
+          setTooltip({
+            visible: true,
+            x: param.point!.x,
+            y: param.point!.y,
+            text: (closestSymbol as string).replace('.NS', '')
+          });
+        } else {
+          setTooltip(s => ({ ...s, visible: false }));
+        }
       } else {
         setTooltip(s => ({ ...s, visible: false }));
       }
@@ -88,31 +129,33 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
     if (props.equityCurve && props.equityCurve.length > 0) {
       mainSeries.setData(props.equityCurve.map(c => ({ time: c.time, value: c.value })));
       investedSeries.setData(props.equityCurve.map(c => ({ time: c.time, value: c.invested })));
-      
-      if (props.tradeMarkers !== undefined || props.tradeHistory !== undefined) {
-        // Markers disabled, hover dialog handles it
-      } else if (props.stockCurves) {
-        let colorIndex = 0;
-        Object.entries(props.stockCurves).forEach(([symbol, data]) => {
-          const stockSeries = chart.addSeries(LineSeries, {
-            color: STOCK_COLORS[colorIndex % STOCK_COLORS.length],
-            lineWidth: 1,
-            crosshairMarkerRadius: 3,
-          });
-          stockSeries.setData(data.map(c => ({ time: c.time, value: c.value })));
-          stockSeriesMap[symbol] = stockSeries;
-          colorIndex++;
-        });
-      }
-      
-      chart.timeScale().fitContent();
     }
+    
+    if (props.tradeMarkers !== undefined || props.tradeHistory !== undefined) {
+      // Markers disabled, hover dialog handles it
+    } else if (props.stockCurves) {
+      Object.entries(props.stockCurves).forEach(([symbol, data]) => {
+        const stockSeries = chart.addSeries(LineSeries, {
+          color: getStockColor(symbol),
+          lineWidth: 1,
+          crosshairMarkerRadius: 3,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+        stockSeries.setData(data.map(c => ({ time: c.time, value: c.value })));
+        stockSeriesMap[symbol] = stockSeries;
+      });
+    }
+    
+    chart.timeScale().fitContent();
   };
 
   createEffect(() => [props.equityCurve, props.stockCurves] as const, ([curve, stockCurves]) => {
-    if (chartInstance && curve && curve.length > 0) {
-      if (mainSeries) mainSeries.setData(curve.map(c => ({ time: c.time, value: c.value })));
-      if (investedSeries) investedSeries.setData(curve.map(c => ({ time: c.time, value: c.invested })));
+    if (chartInstance) {
+      if (curve && curve.length > 0) {
+        if (mainSeries) mainSeries.setData(curve.map(c => ({ time: c.time, value: c.value })));
+        if (investedSeries) investedSeries.setData(curve.map(c => ({ time: c.time, value: c.invested })));
+      }
 
       if (props.tradeMarkers !== undefined || props.tradeHistory !== undefined) {
         Object.keys(stockSeriesMap).forEach(sym => {
@@ -122,18 +165,18 @@ export function PortfolioEquityChart(props: PortfolioEquityChartProps) {
         
         // Markers disabled, hover dialog handles it
       } else if (stockCurves) {
-        let colorIndex = 0;
         Object.entries(stockCurves).forEach(([symbol, data]) => {
           if (!stockSeriesMap[symbol]) {
              const stockSeries = chartInstance!.addSeries(LineSeries, {
-              color: STOCK_COLORS[colorIndex % STOCK_COLORS.length],
+              color: getStockColor(symbol),
               lineWidth: 1,
               crosshairMarkerRadius: 3,
+              priceLineVisible: false,
+              lastValueVisible: false,
             });
             stockSeriesMap[symbol] = stockSeries;
           }
           stockSeriesMap[symbol].setData(data.map(c => ({ time: c.time, value: c.value })));
-          colorIndex++;
         });
         
         // Remove old series if they no longer exist
