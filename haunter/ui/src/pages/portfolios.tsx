@@ -11,6 +11,7 @@ import {
 import { PortfolioEquityChart } from './components/portfolio/PortfolioEquityChart';
 import { useAppStore } from '../store/appStore';
 import { PortfolioLedgerTable } from './components/portfolio/PortfolioLedgerTable';
+import { PortfolioRebalanceTable } from './components/portfolio/PortfolioRebalanceTable';
 import { CorrelationMatrixTable } from './components/portfolio/CorrelationMatrixTable';
 import { PageLayout } from './components/PageLayout';
 import { usePortfolioSimulation } from '../hooks/usePortfolioSimulation';
@@ -487,6 +488,10 @@ export default function PortfoliosPage() {
                   setNewSip={setNewSip}
                 />
                 
+                <Show when={p().isKite}>
+                  <PortfolioRebalanceTable stockBreakdown={sim.stockBreakdown()} />
+                </Show>
+
                 <CorrelationMatrixTable 
                   activeStocks={activeStocks().filter(sym => !unselectedNormalizedStocks().has(sym))}
                   normalizedCurves={simExact.normalizedStockCurves()}

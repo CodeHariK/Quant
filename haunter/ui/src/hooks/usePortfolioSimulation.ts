@@ -17,6 +17,10 @@ export interface StockSummary {
   currentQty: number;
   lumpsumReturn: number;
   targetWeight?: number;
+  actualInvested?: number;
+  actualPortfolioValue?: number;
+  actualQty?: number;
+  actualValue?: number;
 }
 
 export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
@@ -404,13 +408,26 @@ export function usePortfolioSimulation(
           symbol: sym,
           initialQuantity: res.stock.initialQuantity,
           sipAmount: displaySip,
-          totalInvested: actualInvested,
-          currentValue: actualQty * lastKnownPrice[sym],
-          currentQty: actualQty,
+          totalInvested: stockInvested[sym],
+          currentValue: currentQty[sym] * lastKnownPrice[sym],
+          currentQty: currentQty[sym],
           lumpsumReturn,
           targetWeight: p.isKite && stockDynamicSip[sym] !== undefined ? stockDynamicSip[sym] / 10000 : undefined,
+          actualInvested: actualInvested,
+          actualQty: actualQty,
+          actualValue: actualQty * lastKnownPrice[sym]
         };
-      }).filter(s => s.currentQty > 0);
+      }).filter(s => !p.isKite || s.currentQty > 0 || (s.actualInvested && s.actualInvested > 0));
+
+      // Calculate actual portfolio value for isolated target math
+      let actualPortfolioValue = 0;
+      if (p.isKite) {
+        breakdown.forEach(s => {
+          const qty = p.stocks.find(st => st.symbol === s.symbol)?.currentQuantity || 0;
+          actualPortfolioValue += qty * (lastKnownPrice[s.symbol] || 0);
+        });
+        breakdown.forEach(s => s.actualPortfolioValue = actualPortfolioValue);
+      }
 
       // Calculate normalized pure price curves (ignoring quantities)
       const normalizedRaw: Record<string, {time: string, value: number}[]> = {};
