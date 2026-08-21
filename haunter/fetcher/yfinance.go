@@ -144,6 +144,16 @@ func FetchFullValuationReport(symbol string, forceRefresh bool, period string) (
 
 	quantRatios := analyzer.CalculateValuationRatios(rawPeg, peRatio, eps, curPrice, earningsGrowth, divYield)
 
+	// Technical Analysis (RSI, MACD, Bollinger Bands) using cinar/indicator
+	closingPrices := make([]float64, 0, len(historyBars))
+	for _, b := range historyBars {
+		closingPrices = append(closingPrices, b.Close)
+	}
+	taResult, err := analyzer.AnalyzeStock(symbol, closingPrices)
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to calculate technical indicators for %s: %v", symbol, err)
+	}
+
 	report := &types.FullValuationReport{
 		Symbol:                symbol,
 		FetchedAt:             time.Now(),
@@ -170,6 +180,7 @@ func FetchFullValuationReport(symbol string, forceRefresh bool, period string) (
 		MonthlyGrowthPerc:     trendAnalysis.MonthlyGrowthPerc,
 		RawInfo:               rawInfo,
 		History:               historyBars,
+		TechnicalAnalysis:     taResult,
 		CashFlow:              cfItems,
 		IncomeStatement:       isItems,
 		BalanceSheet:          bsItems,

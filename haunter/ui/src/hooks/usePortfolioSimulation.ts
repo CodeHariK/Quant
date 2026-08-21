@@ -1,6 +1,6 @@
 import { createSignal, createEffect } from 'solid-js';
 import { fetchValuationReport, Portfolio } from '../api/stockApi';
-import type { HistoryBar } from '../types/events';
+import type { HistoryBar, AnalysisResult } from '../types/events';
 
 export interface EquityPoint {
   time: string;
@@ -22,6 +22,7 @@ export interface StockSummary {
   actualQty?: number;
   actualValue?: number;
   atr14?: number;
+  technicalAnalysis?: AnalysisResult;
 }
 
 export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
@@ -116,10 +117,10 @@ export function usePortfolioSimulation(
       stocksToFetch.map(async (stock) => {
         try {
           const report = await fetchValuationReport(stock.symbol, false, tf);
-          return { stock, history: report.history };
+          return { stock, history: report.history, report: report };
         } catch (e) {
           console.error(`Failed to fetch history for ${stock.symbol}`, e);
-          return { stock, history: [] as HistoryBar[] };
+          return { stock, history: [] as HistoryBar[], report: null };
         }
       })
     ).then((results) => {
@@ -449,7 +450,8 @@ export function usePortfolioSimulation(
           actualInvested: actualInvested,
           actualQty: actualQty,
           actualValue: actualQty * lastKnownPrice[sym],
-          atr14: calculateAtr14(res.history)
+          atr14: calculateAtr14(res.history),
+          technicalAnalysis: res.report?.technicalAnalysis
         };
       }).filter(s => !p.isKite || s.currentQty > 0 || (s.actualInvested && s.actualInvested > 0));
 

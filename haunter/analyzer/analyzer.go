@@ -9,23 +9,10 @@ import (
 	"haunter/types"
 )
 
-type AnalysisResult struct {
-	Symbol       string
-	LatestPrice  float64
-	SMA50        float64
-	EMA20        float64
-	RSI14        float64
-	UpperBand    float64
-	LowerBand    float64
-	MACD         float64
-	MACDSignal   float64
-	TrendStatus  string
-	CautionLevel string
-	Warnings     []string
-}
+
 
 // AnalyzeStock computes TA indicators using cinar/indicator v1.3.0
-func AnalyzeStock(symbol string, prices []float64) (*AnalysisResult, error) {
+func AnalyzeStock(symbol string, prices []float64) (*types.AnalysisResult, error) {
 	if len(prices) < 50 {
 		return nil, fmt.Errorf("insufficient price points (%d), need at least 50", len(prices))
 	}
@@ -76,7 +63,7 @@ func AnalyzeStock(symbol string, prices []float64) (*AnalysisResult, error) {
 		cautionLevel = "⚠️ CAUTION"
 	}
 
-	return &AnalysisResult{
+	return &types.AnalysisResult{
 		Symbol:       symbol,
 		LatestPrice:  latestPrice,
 		SMA50:        lastSMA50,

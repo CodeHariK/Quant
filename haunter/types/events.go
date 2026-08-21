@@ -39,6 +39,22 @@ type FinancialStatementItem struct {
 	Values map[string]float64 `json:"values"`
 }
 
+// AnalysisResult holds Technical Analysis (TA) metrics like RSI, MACD, and Bollinger Bands
+type AnalysisResult struct {
+	Symbol       string   `json:"symbol"`
+	LatestPrice  float64  `json:"latestPrice"`
+	SMA50        float64  `json:"sma50"`
+	EMA20        float64  `json:"ema20"`
+	RSI14        float64  `json:"rsi14"`
+	UpperBand    float64  `json:"upperBand"`
+	LowerBand    float64  `json:"lowerBand"`
+	MACD         float64  `json:"macd"`
+	MACDSignal   float64  `json:"macdSignal"`
+	TrendStatus  string   `json:"trendStatus"`
+	CautionLevel string   `json:"cautionLevel"`
+	Warnings     []string `json:"warnings"`
+}
+
 // FullValuationReport consolidates complete 5-Year Data from go-yfinance without discarding fields:
 // 1. Info: Complete raw models.Info struct (100+ fields)
 // 2. History: Complete 5Y daily OHLCV candles
@@ -74,6 +90,7 @@ type FullValuationReport struct {
 	Recommendations      *models.RecommendationTrend `json:"recommendations"`      // Wall Street Analyst Consensus Ratings
 	RawInfo              *models.Info                 `json:"rawInfo"`
 	History              []HistoryBar             `json:"history"`
+	TechnicalAnalysis    *AnalysisResult          `json:"technicalAnalysis"`
 	CashFlow             []FinancialStatementItem `json:"cashFlow"`
 	IncomeStatement      []FinancialStatementItem `json:"incomeStatement"`
 	BalanceSheet         []FinancialStatementItem `json:"balanceSheet"`

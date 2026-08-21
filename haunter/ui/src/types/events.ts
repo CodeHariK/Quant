@@ -14,6 +14,21 @@ export interface HistoryBar {
   volume: number;
 }
 
+export interface AnalysisResult {
+  symbol: string;
+  latestPrice: number;
+  sma50: number;
+  ema20: number;
+  rsi14: number;
+  upperBand: number;
+  lowerBand: number;
+  macd: number;
+  macdSignal: number;
+  trendStatus: string;
+  cautionLevel: string;
+  warnings: string[];
+}
+
 export interface FullValuationReport {
   symbol: string;
   fetchedAt: string;
@@ -41,6 +56,7 @@ export interface FullValuationReport {
   recommendations?: Record<string, any>;
   rawInfo: Record<string, any>;
   history: HistoryBar[];
+  technicalAnalysis?: AnalysisResult;
   cashFlow: FinancialStatementItem[];
   incomeStatement: FinancialStatementItem[];
   balanceSheet: FinancialStatementItem[];

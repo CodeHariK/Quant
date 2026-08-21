@@ -13,6 +13,7 @@ import { useAppStore } from '../store/appStore';
 import { PortfolioLedgerTable } from './components/portfolio/PortfolioLedgerTable';
 import { PortfolioRebalanceTable } from './components/portfolio/PortfolioRebalanceTable';
 import { GttSafetyNetTable } from './components/portfolio/GttSafetyNetTable';
+import { TechnicalWatchdogTable } from './components/portfolio/TechnicalWatchdogTable';
 import { CorrelationMatrixTable } from './components/portfolio/CorrelationMatrixTable';
 import { PageLayout } from './components/PageLayout';
 import { usePortfolioSimulation } from '../hooks/usePortfolioSimulation';
@@ -492,6 +493,7 @@ export default function PortfoliosPage() {
                 <Show when={p().isKite}>
                   <PortfolioRebalanceTable stockBreakdown={sim.stockBreakdown()} />
                   <GttSafetyNetTable stockBreakdown={sim.stockBreakdown()} />
+                  <TechnicalWatchdogTable stockBreakdown={sim.stockBreakdown()} />
                 </Show>
 
                 <CorrelationMatrixTable 
