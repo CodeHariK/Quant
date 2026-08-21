@@ -21,6 +21,7 @@ export interface StockSummary {
   actualPortfolioValue?: number;
   actualQty?: number;
   actualValue?: number;
+  atr14?: number;
 }
 
 export type SimulationMode = 'MANUAL' | 'HOLDING_LUMPSUM' | 'TRADEBOOK_EXACT';
@@ -44,6 +45,38 @@ export function usePortfolioSimulation(
   
   const [totalInvested, setTotalInvested] = createSignal(0);
   const [currentValue, setCurrentValue] = createSignal(0);
+
+  const calculateAtr14 = (history: any[]): number => {
+    if (!history || history.length < 15) return 0;
+    
+    const trueRanges: number[] = [];
+    for (let i = 1; i < history.length; i++) {
+      const high = history[i].high;
+      const low = history[i].low;
+      const prevClose = history[i-1].close;
+      
+      const tr = Math.max(
+        high - low,
+        Math.abs(high - prevClose),
+        Math.abs(low - prevClose)
+      );
+      trueRanges.push(tr);
+    }
+    
+    // First 14-day SMA
+    let atr = 0;
+    for (let i = 0; i < 14; i++) {
+      atr += trueRanges[i];
+    }
+    atr = atr / 14;
+    
+    // Wilder's Smoothing for the rest
+    for (let i = 14; i < trueRanges.length; i++) {
+      atr = ((atr * 13) + trueRanges[i]) / 14;
+    }
+    
+    return atr;
+  };
 
   createEffect(() => [portfolio(), timeframe(), mode(), sipDistribution(), clusterBy()] as const, ([p, tf, simMode, dist, cluster]) => {
     if (!p) {
@@ -415,7 +448,8 @@ export function usePortfolioSimulation(
           targetWeight: p.isKite && stockDynamicSip[sym] !== undefined ? stockDynamicSip[sym] / 10000 : undefined,
           actualInvested: actualInvested,
           actualQty: actualQty,
-          actualValue: actualQty * lastKnownPrice[sym]
+          actualValue: actualQty * lastKnownPrice[sym],
+          atr14: calculateAtr14(res.history)
         };
       }).filter(s => !p.isKite || s.currentQty > 0 || (s.actualInvested && s.actualInvested > 0));
 
