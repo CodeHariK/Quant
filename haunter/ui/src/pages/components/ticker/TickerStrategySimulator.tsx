@@ -39,9 +39,11 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
   const [maxLossPerc, setMaxLossPerc] = createSignal(25);
   const [lookbackMonths, setLookbackMonths] = createSignal(3);
 
-  const [strategyType, setStrategyType] = createSignal<'STATIC' | 'ATR'>('STATIC');
+  const [strategyType, setStrategyType] = createSignal<'STATIC' | 'ATR' | 'RSI' | 'MACD'>('STATIC');
   const [atrTslMult, setAtrTslMult] = createSignal(2.5);
   const [atrMaxLossMult, setAtrMaxLossMult] = createSignal(6.0);
+  const [rsiOversold, setRsiOversold] = createSignal(30);
+  const [rsiOverbought, setRsiOverbought] = createSignal(70);
 
   const calculateAtrArray = (history: HistoryBar[], period = 14) => {
     const atrArray: number[] = new Array(history.length).fill(0);
@@ -74,6 +76,83 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
     return atrArray;
   };
 
+  const calculateRSI = (history: HistoryBar[], period = 14) => {
+    const rsiArray = new Array(history.length).fill(0);
+    if (history.length <= period) return rsiArray;
+
+    let avgGain = 0;
+    let avgLoss = 0;
+
+    for (let i = 1; i <= period; i++) {
+      const diff = history[i].close - history[i - 1].close;
+      if (diff >= 0) avgGain += diff;
+      else avgLoss -= diff;
+    }
+
+    avgGain /= period;
+    avgLoss /= period;
+
+    let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    rsiArray[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + rs));
+
+    for (let i = period + 1; i < history.length; i++) {
+      const diff = history[i].close - history[i - 1].close;
+      const gain = diff >= 0 ? diff : 0;
+      const loss = diff < 0 ? -diff : 0;
+
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+
+      rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      rsiArray[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + rs));
+    }
+
+    return rsiArray;
+  };
+
+  const calculateMACD = (history: HistoryBar[], shortPeriod = 12, longPeriod = 26, signalPeriod = 9) => {
+    const macdArray = new Array(history.length).fill({ macdLine: 0, signalLine: 0, histogram: 0 });
+    if (history.length <= longPeriod) return macdArray;
+
+    const calcEMA = (data: number[], period: number) => {
+      const ema = new Array(data.length).fill(0);
+      let sum = 0;
+      for (let i = 0; i < period; i++) sum += data[i];
+      ema[period - 1] = sum / period;
+      const multiplier = 2 / (period + 1);
+      for (let i = period; i < data.length; i++) {
+        ema[i] = (data[i] - ema[i - 1]) * multiplier + ema[i - 1];
+      }
+      return ema;
+    };
+
+    const closePrices = history.map(b => b.close);
+    const shortEMA = calcEMA(closePrices, shortPeriod);
+    const longEMA = calcEMA(closePrices, longPeriod);
+
+    const macdLine = new Array(history.length).fill(0);
+    for (let i = longPeriod - 1; i < history.length; i++) {
+      macdLine[i] = shortEMA[i] - longEMA[i];
+    }
+
+    const validMacdLine = macdLine.slice(longPeriod - 1);
+    const signalLineRaw = calcEMA(validMacdLine, signalPeriod);
+    const signalLine = new Array(history.length).fill(0);
+    for (let i = 0; i < signalLineRaw.length; i++) {
+      signalLine[i + longPeriod - 1] = signalLineRaw[i];
+    }
+
+    for (let i = 0; i < history.length; i++) {
+      macdArray[i] = {
+        macdLine: macdLine[i],
+        signalLine: signalLine[i],
+        histogram: macdLine[i] - signalLine[i]
+      };
+    }
+
+    return macdArray;
+  };
+
   const results = createMemo<SimulatorResults | null>(() => {
     const report = props.fullReport();
     if (!report || !report.history || report.history.length === 0) return null;
@@ -98,6 +177,8 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
     // --- Strategy Simulation ---
     const stType = strategyType();
     const atrArray = calculateAtrArray(history);
+    const rsiArray = calculateRSI(history);
+    const macdArray = calculateMACD(history);
 
     const tl = triggerLossPerc() / 100;
     const ml = maxLossPerc() / 100;
@@ -153,7 +234,49 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
 
       const currentPrice = b.close;
 
-      // Calculate Rolling Peak for Breakout
+      if (stType === 'RSI') {
+        if (state === 'INVESTED' && rsiArray[i] > rsiOverbought()) {
+          cash += tradeShares * currentPrice;
+          logs.push({ date: b.date, type: 'SELL', price: currentPrice, shares: tradeShares, reason: `RSI Overbought (${rsiArray[i].toFixed(1)})`, cashRemaining: cash });
+          tradeShares = 0;
+          state = 'SIDELINES';
+          tradesCount++;
+        } else if (state === 'SIDELINES' && rsiArray[i] < rsiOversold()) {
+          const sharesBought = cash / currentPrice;
+          tradeShares += sharesBought;
+          cash = 0;
+          logs.push({ date: b.date, type: 'BUY', price: currentPrice, shares: sharesBought, reason: `RSI Oversold (${rsiArray[i].toFixed(1)})`, cashRemaining: cash });
+          tradesCount++;
+          state = 'INVESTED';
+        }
+        continue;
+      }
+
+      if (stType === 'MACD') {
+        const prevMacd = i > 0 ? macdArray[i-1] : macdArray[i];
+        const currMacd = macdArray[i];
+        
+        const isBullCross = prevMacd.macdLine <= prevMacd.signalLine && currMacd.macdLine > currMacd.signalLine;
+        const isBearCross = prevMacd.macdLine >= prevMacd.signalLine && currMacd.macdLine < currMacd.signalLine;
+
+        if (state === 'INVESTED' && isBearCross) {
+          cash += tradeShares * currentPrice;
+          logs.push({ date: b.date, type: 'SELL', price: currentPrice, shares: tradeShares, reason: `MACD Bear Cross`, cashRemaining: cash });
+          tradeShares = 0;
+          state = 'SIDELINES';
+          tradesCount++;
+        } else if (state === 'SIDELINES' && isBullCross) {
+          const sharesBought = cash / currentPrice;
+          tradeShares += sharesBought;
+          cash = 0;
+          logs.push({ date: b.date, type: 'BUY', price: currentPrice, shares: sharesBought, reason: `MACD Bull Cross`, cashRemaining: cash });
+          tradesCount++;
+          state = 'INVESTED';
+        }
+        continue;
+      }
+
+      // Calculate Rolling Peak for Breakout (STATIC & ATR ONLY)
       let yesterdayRollingPeak = history[0].high;
       if (i > 0) {
         yesterdayRollingPeak = history[i-1].high;
@@ -320,20 +443,16 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
     <div class="mt-8 mb-12">
       <div class="flex items-center justify-between mb-4">
         <Text variant="h2" class="mb-0">STRATEGY SIMULATOR</Text>
-        <div class="flex gap-2">
-          <button 
-            class={`text-[10px] px-3 py-1 rounded-full font-bold border transition-colors ${strategyType() === 'STATIC' ? 'bg-primary text-on-primary border-primary' : 'bg-surface-variant text-on-surface-variant border-outline hover:bg-surface-container'}`}
-            onClick={() => setStrategyType('STATIC')}
-          >
-            STATIC SCALING
-          </button>
-          <button 
-            class={`text-[10px] px-3 py-1 rounded-full font-bold border transition-colors ${strategyType() === 'ATR' ? 'bg-primary text-on-primary border-primary' : 'bg-surface-variant text-on-surface-variant border-outline hover:bg-surface-container'}`}
-            onClick={() => setStrategyType('ATR')}
-          >
-            DYNAMIC ATR SCALING
-          </button>
-        </div>
+        <select 
+          class="bg-surface-variant text-on-surface text-[11px] font-bold px-3 py-1.5 rounded-full border border-outline focus:outline-none focus:border-primary cursor-pointer"
+          value={strategyType()}
+          onChange={(e) => setStrategyType(e.currentTarget.value as any)}
+        >
+          <option value="STATIC">STATIC SCALING</option>
+          <option value="ATR">DYNAMIC ATR SCALING</option>
+          <option value="RSI">RSI MEAN REVERSION</option>
+          <option value="MACD">MACD MOMENTUM</option>
+        </select>
       </div>
 
       <div class="p-5 mb-6 rounded-xl border border-outline bg-surface-container-low flex flex-col md:flex-row gap-8">
@@ -422,20 +541,73 @@ export function TickerStrategySimulator(props: TickerStrategySimulatorProps) {
           </>
         )}
 
-        <div class="flex-1">
-          <div class="flex justify-between mb-2">
-            <Text variant="body" class="font-bold text-on-surface">Breakout Lookback</Text>
-            <span class="text-sm font-bold text-on-surface">{lookbackMonths()} Months</span>
+        {strategyType() === 'RSI' && (
+          <>
+            <div class="flex-1">
+              <div class="flex justify-between mb-2">
+                <Text variant="body" class="font-bold text-on-surface">Oversold Threshold (Buy)</Text>
+                <span class="text-sm font-bold text-secondary">{rsiOversold()}</span>
+              </div>
+              <input 
+                type="range" 
+                min="10" max="50" step="1" 
+                value={rsiOversold()} 
+                onInput={(e) => {
+                  const val = parseInt(e.currentTarget.value);
+                  setRsiOversold(val);
+                  if (val >= rsiOverbought()) setRsiOverbought(val + 10);
+                }}
+                class="w-full accent-primary"
+              />
+              <Text variant="muted" class="text-xs mt-1">Buys 100% when RSI drops below this.</Text>
+            </div>
+            
+            <div class="flex-1">
+              <div class="flex justify-between mb-2">
+                <Text variant="body" class="font-bold text-on-surface">Overbought Threshold (Sell)</Text>
+                <span class="text-sm font-bold text-critical-red">{rsiOverbought()}</span>
+              </div>
+              <input 
+                type="range" 
+                min="50" max="90" step="1" 
+                value={rsiOverbought()} 
+                onInput={(e) => {
+                  const val = parseInt(e.currentTarget.value);
+                  setRsiOverbought(val);
+                  if (val <= rsiOversold()) setRsiOversold(val - 10 > 10 ? val - 10 : 10);
+                }}
+                class="w-full accent-primary"
+              />
+              <Text variant="muted" class="text-xs mt-1">Sells 100% when RSI crosses above this.</Text>
+            </div>
+          </>
+        )}
+
+        {strategyType() === 'MACD' && (
+          <div class="flex-1 flex items-center justify-center py-4 text-center border border-outline rounded-lg bg-surface/50">
+            <div>
+              <Text variant="body" class="font-bold text-on-surface mb-1">Standard MACD (12, 26, 9)</Text>
+              <Text variant="muted" class="text-xs">Buys on Bull Cross. Sells on Bear Cross. Fully automated.</Text>
+            </div>
           </div>
-          <input 
-            type="range" 
-            min="1" max="12" step="1" 
-            value={lookbackMonths()} 
-            onInput={(e) => setLookbackMonths(parseInt(e.currentTarget.value))}
-            class="w-full accent-primary"
-          />
-          <Text variant="muted" class="text-xs mt-1">Months to track for breakout peak.</Text>
-        </div>
+        )}
+
+        {['STATIC', 'ATR'].includes(strategyType()) && (
+          <div class="flex-1">
+            <div class="flex justify-between mb-2">
+              <Text variant="body" class="font-bold text-on-surface">Breakout Lookback</Text>
+              <span class="text-sm font-bold text-on-surface">{lookbackMonths()} Months</span>
+            </div>
+            <input 
+              type="range" 
+              min="1" max="12" step="1" 
+              value={lookbackMonths()} 
+              onInput={(e) => setLookbackMonths(parseInt(e.currentTarget.value))}
+              class="w-full accent-primary"
+            />
+            <Text variant="muted" class="text-xs mt-1">Months to track for breakout peak.</Text>
+          </div>
+        )}
       </div>
 
       {results() && (
