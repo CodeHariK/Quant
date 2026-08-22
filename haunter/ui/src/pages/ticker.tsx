@@ -15,6 +15,7 @@ import { TickerFormulaModals } from './components/ticker/TickerFormulaModals';
 import { TickerFinancialStats } from './components/ticker/TickerFinancialStats';
 import { TickerRawInspector } from './components/ticker/TickerRawInspector';
 import { TickerPriceChart } from './components/ticker/TickerPriceChart';
+import { TickerStrategySimulator } from './components/ticker/TickerStrategySimulator';
 
 
 export default function Ticker() {
@@ -128,6 +129,8 @@ export default function Ticker() {
         fullReport={fullReport}
         setActiveModal={setActiveModal}
       />
+
+      <TickerStrategySimulator fullReport={fullReport} />
 
       <TickerFormulaModals
         activeModal={activeModal}
